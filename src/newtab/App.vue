@@ -8,14 +8,13 @@
     <div class="center-stack">
       <div class="date">{{ dateStr }}</div>
       <div class="clock">{{ timeStr }}</div>
-      <div class="greeting">Hello there<span v-if="name">, {{ name }}</span></div>
+<!--      <div class="greeting">Hello there<span v-if="name">, {{ name }}</span></div>-->
+      <FooterQuote />
     </div>
 
-    <div class="footer">
-      <button class="footer-icon green-check" @click="onTaskClick" title="Tasks">✅</button>
-      <FooterQuote />
-      <button class="footer-icon" @click="onSettingsClick" title="Settings">⚙️</button>
-    </div>
+<!--    <div class="footer">-->
+<!--      -->
+<!--    </div>-->
   </div>
 </template>
 
@@ -76,7 +75,7 @@ function onTaskClick() {
 <style scoped>
 .container {
   position: relative; width: 100%; height: 100%;
-  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  display: flex; flex-direction: column; justify-content: end; align-items: center;
   color: white;
   overflow: hidden;
 }
@@ -88,9 +87,9 @@ function onTaskClick() {
 .center-stack {
   position: relative;
   display: flex; flex-direction: column; align-items: center;
-  gap: 12px; z-index: 3;
+  z-index: 3; bottom: 12px;
 }
-.date { font-size: 2rem; margin-bottom: 8px; text-shadow: 0 3px 6px rgba(0,0,0,.7); }
+.date { font-size: 2rem; text-shadow: 0 3px 6px rgba(0,0,0,.7); }
 .clock { font-size: 8rem; font-weight: 500; letter-spacing: 2px; text-shadow: 0 4px 8px rgba(0,0,0,.8); }
 .greeting { font-size: 2.2rem; text-shadow: 0 3px 6px rgba(0,0,0,.7); }
 
@@ -99,15 +98,7 @@ function onTaskClick() {
   display: flex; justify-content: space-between; align-items: center;
   padding: 0 20px; font-size: 1rem;
 }
-.footer-icon {
-  font-size: 1.6rem; cursor: pointer; user-select: none; padding: 4px;
-  transition: transform .2s ease, color .2s ease, border-bottom .2s ease;
-  border-bottom: 2px solid transparent;
-}
-.footer-icon:hover {
-  transform: scale(1.15); border-bottom: 2px solid rgba(255,255,255,0.8); color: #fff;
-}
-.green-check { color: #4ade80; }
+
 @media (max-width: 1024px) { .clock { font-size: 7rem; } }
 @media (max-width: 640px) {
   .clock { font-size: 5rem; letter-spacing: 1px; }

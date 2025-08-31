@@ -24,7 +24,7 @@ type ClockCfg = { label: string; tz: string }
 
 const clocks = ref<ClockCfg[]>([
   // Your home
-  { label: 'Lima/Perú', tz: 'America/Lima' },
+  { label: 'Lima', tz: 'America/Lima' },
 
   // USA — Eastern
   { label: 'New York', tz: 'America/New_York' },
@@ -46,25 +46,25 @@ const clocks = ref<ClockCfg[]>([
   { label: 'Seattle',    tz: 'America/Los_Angeles' },
 
   // Europe (WET/UTC±1 and CET/CEST)
-  { label: 'London/UK',  tz: 'Europe/London' },
+  { label: 'London',  tz: 'Europe/London' },
   // { label: 'Dublin',  tz: 'Europe/Dublin' },
   // { label: 'Lisbon',  tz: 'Europe/Lisbon' },
-  { label: 'Paris/France',   tz: 'Europe/Paris' },
-  { label: 'Berlin/Germany',  tz: 'Europe/Berlin' },
-  { label: 'Madrid/Spain',  tz: 'Europe/Madrid' },
+  { label: 'Paris',   tz: 'Europe/Paris' },
+  { label: 'Berlin',  tz: 'Europe/Berlin' },
+  { label: 'Madrid',  tz: 'Europe/Madrid' },
 
   // Ukraine (single national zone; uses DST EET/EEST)
-  { label: 'Kyiv/Ukraine',  tz: 'Europe/Kyiv' },
+  { label: 'Kyiv',  tz: 'Europe/Kyiv' },
 
   // Australia & New Zealand (note DST differences + half-hour)
-  { label: 'Sydney/Australia',    tz: 'Australia/Sydney' },
+  { label: 'Sydney',    tz: 'Australia/Sydney' },
   // { label: 'Melbourne', tz: 'Australia/Melbourne' },
   // { label: 'Brisbane',  tz: 'Australia/Brisbane' }, // no DST
   // { label: 'Adelaide',  tz: 'Australia/Adelaide' }, // +0:30 offset vs Sydney/Melb
   // { label: 'Perth',     tz: 'Australia/Perth' },
   // { label: 'Auckland',  tz: 'Pacific/Auckland' },
   // { label: 'Wellington',tz: 'Pacific/Auckland' },
-  { label: 'Queenstown/New Zealand', tz: 'Pacific/Auckland' },
+  { label: 'Queenstown', tz: 'Pacific/Auckland' },
   // { label: 'Chatham Is.', tz: 'Pacific/Chatham' }   // +0:45 quirk
 ])
 
@@ -259,11 +259,13 @@ function dayBadge(tz: string) {
   min-width: var(--wc-minw);
   padding: var(--wc-pad-y) var(--wc-pad-x);
   border-radius: var(--wc-radius);
-  background: rgba(0, 0, 0, 0.14);
-  backdrop-filter: blur(4px);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.14);
   color: #fff;
   line-height: 1.05;
+  background: rgba(0,0,0,0.28);          /* was ~0.14; bump opacity a bit */
+  backdrop-filter: blur(6px) saturate(1.05);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
 }
 
 .wc-city {
@@ -273,6 +275,7 @@ function dayBadge(tz: string) {
   opacity: var(--wc-text);
   margin-bottom: 3px;
   text-align: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65);
 }
 
 .wc-time {
@@ -282,6 +285,7 @@ function dayBadge(tz: string) {
   display: flex;
   align-items: baseline;
   gap: 6px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65);
 }
 
 /* Zone abbrev (PDT/CEST) – small & subtle */
@@ -296,7 +300,7 @@ function dayBadge(tz: string) {
 .wc-offset {
   font-size: var(--wc-offset-size);
   font-weight: 600;
-  opacity: calc(var(--wc-subtext) - .08);
+  opacity: .75;
   transform: translateY(-1px);
 }
 
@@ -308,7 +312,7 @@ function dayBadge(tz: string) {
   font-size: .62rem;
   font-weight: 700;
   letter-spacing: .2px;
-  opacity: .85;
+  opacity: .66;
   transform: translateY(-1px);
 }
 

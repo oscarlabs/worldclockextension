@@ -1,45 +1,34 @@
 <template>
-  <div class="bg" :style="styleObj" :class="{ visible: isVisible }"></div>
+  <div class="bg visible" :style="bgStyle"></div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+const IMAGES = [
+  'https://images.unsplash.com/photo-1537617173434-be35dd906e61?q=80&w=1459&auto=format&fit=crop&ixlib=rb-4.1.0',
+  'https://images.unsplash.com/photo-1530656131887-4765f003e900?q=80&w=1958&auto=format&fit=crop&ixlib=rb-4.1.0',
+  'https://images.unsplash.com/photo-1593755673003-8ca8dbf906c2?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.1.0',
+  'https://images.unsplash.com/photo-1565690482729-9290df702689?q=80&w=3132&auto=format&fit=crop&ixlib=rb-4.1.0',
+  'https://images.unsplash.com/photo-1701138283117-a400b5100903?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0',
+  'https://images.unsplash.com/photo-1593964315774-497e84de257a?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0',
+  'https://images.unsplash.com/photo-1740657476863-9fd0dbbbc9c2?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0',
+]
 
-const isVisible = ref(false)
-const styleObj = ref<Record<string, string>>({})
+// 0 = Sunday ... 6 = Saturday
+const dow = new Date().getDay()
+const url = IMAGES[dow % IMAGES.length]   // modulo lets you use fewer/more than 7 safely
 
-async function loadImage() {
-  // daily cache key
-  const todayKey = new Date().toISOString().slice(0,10)
-  const cacheKey = `bg_${todayKey}`
-  const cached = localStorage.getItem(cacheKey)
-  if (cached) {
-    styleObj.value = { backgroundImage: `url(${cached})` }
-    isVisible.value = true
-    return
-  }
-  // fetch Unsplash random landscape
-  const url = 'https://source.unsplash.com/1600x900/?landscape,nature'
-  try {
-    const resUrl = url // for this endpoint, the final image URL is the request itself
-    styleObj.value = { backgroundImage: `url(${resUrl})` }
-    isVisible.value = true
-    localStorage.clear() // clear older cached bg keys
-    localStorage.setItem(cacheKey, resUrl)
-  } catch (e) {
-    console.error('Background load failed', e)
-  }
-}
-
-onMounted(loadImage)
+const bgStyle = { backgroundImage: `url("${url}")` }
 </script>
 
 <style scoped>
 .bg {
-  position: fixed; inset: 0; z-index: 1;
-  background-size: cover; background-position: center; background-repeat: no-repeat;
-  filter: brightness(1);
-  opacity: 0; transition: opacity .4s ease;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #000; /* fallback */
+  opacity: 1;
 }
-.bg.visible { opacity: 1; }
 </style>
