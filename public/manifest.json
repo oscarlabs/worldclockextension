@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Momentum Clone (Vue 3)",
   "version": "1.0.0",
+  "default_locale": "en",
   "description": "A beautiful new tab extension rebuilt with Vue 3 + Vite.",
   "permissions": [
     "storage"
