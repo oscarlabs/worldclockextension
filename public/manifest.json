@@ -15,5 +15,8 @@
   },
   "chrome_url_overrides": {
     "newtab": "newtab.html"
+  },
+  "icons": {
+    "128": "icons/icon128.png"
   }
 }
