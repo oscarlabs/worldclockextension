@@ -210,7 +210,7 @@ function dayDelta(tz: string) {
 
 function dayBadge(tz: string) {
   const d = dayDelta(tz)
-  return d > 0 ? '+1' : d < 0 ? 'Yesterday' : ''
+  return d > 0 ? '+1' : d < 0 ? '-1' : ''
 }
 </script>
 
