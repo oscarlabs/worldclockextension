@@ -25,6 +25,9 @@ type ClockCfg = { label: string; tz: string }
 const clocks = ref<ClockCfg[]>([
   // Your home
   { label: 'Lima', tz: 'America/Lima' },
+  // South America
+  { label: 'Buenos Aires', tz: 'America/Argentina/Buenos_Aires' },
+  { label: 'Brasília',     tz: 'America/Sao_Paulo' },
 
   // USA — Eastern
   { label: 'New York', tz: 'America/New_York' },
