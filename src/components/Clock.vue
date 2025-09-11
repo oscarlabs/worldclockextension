@@ -1,17 +1,3 @@
-<template>
-  <div class="wc-wrap compact">
-    <div v-for="g in groups" :key="g.key" class="wc">
-      <div class="wc-city">{{ g.labels.join(', ') }}</div>
-      <div class="wc-time">
-        {{ formatTime(now, g.sampleTz) }}
-        <span v-if="displayAbbr(g.sampleTz)" class="wc-abbr">{{ displayAbbr(g.sampleTz) }}</span>
-        <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>
-        <span v-if="dayBadge(g.sampleTz)" class="wc-dayflag">{{ dayBadge(g.sampleTz) }}</span>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
@@ -210,101 +196,75 @@ function dayDelta(tz: string) {
 
 function dayBadge(tz: string) {
   const d = dayDelta(tz)
-  return d > 0 ? '+1' : d < 0 ? '-1' : ''
+  return d > 0 ? '(+1)' : d < 0 ? '(-1)' : ''
 }
 </script>
 
+<template>
+  <div v-for="g in groups" :key="g.key" class="glass-card clock-component">
+    <div>{{ g.labels.join(', ') }}</div>
+    <div>
+      {{ formatTime(now, g.sampleTz) }}
+      <span v-if="displayAbbr(g.sampleTz)" class="wc-abbr">{{ displayAbbr(g.sampleTz) }}</span>
+      <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>
+      <span v-if="dayBadge(g.sampleTz)" class="wc-dayflag">{{ dayBadge(g.sampleTz) }}</span>
+    </div>
+    <div class="avatar-group">
+      <div class="avatar">JD</div>
+      <div class="avatar">OP</div>
+  </div>
+
+  </div>
+
+</template>
+
 <style scoped>
 
-/* Compact, high-density clocks header */
-.wc-wrap {
-  position: fixed;
-  top: 10px;
-  left: 12px;
-  right: 12px;
+.glass-card {
+  /* Base styles for the glass-like cards */
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;                     /* tighter spacing */
-  justify-content: center;
-  z-index: 5;
-
-  /* default sizes (can be "cozy") */
-  --wc-pad-y: 6px;
-  --wc-pad-x: 10px;
-  --wc-radius: 12px;
-  --wc-minw: 148px;
-
-  --wc-city-size: .90rem;       /* city line */
-  --wc-time-size: 1.10rem;      /* hh:mm AM/PM */
-  --wc-abbr-size: .72rem;       /* PDT / CEST */
-  --wc-offset-size: .68rem;     /* GMT+/-X */
-  --wc-text: 1;                 /* base opacity */
-  --wc-subtext: .70;            /* small text opacity */
+  color: white;
+  font-weight: 500;
+  padding: 0.5rem; /* 8px */
+  user-select: none;
+  border-radius: 0.75rem; /* 12px */
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px); /* For Safari */
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* one class to flip into a denser mode */
-.wc-wrap.compact {
-  --wc-pad-y: 5px;
-  --wc-pad-x: 9px;
-  --wc-radius: 10px;
-  --wc-minw: 138px;
-
-  --wc-city-size: .86rem;
-  --wc-time-size: 1.04rem;
-  --wc-abbr-size: .70rem;
-  --wc-offset-size: .64rem;
+.glass-card:hover {
+  cursor: pointer;
 }
 
-.wc {
-  display: flex;
+.clock-component {
+  /* flex flex-col text-center w-fit min-h-[99px] + shared styles */
   flex-direction: column;
-  align-items: center;
-  min-width: var(--wc-minw);
-  padding: var(--wc-pad-y) var(--wc-pad-x);
-  border-radius: var(--wc-radius);
-  color: #fff;
-  line-height: 1.05;
-  background: rgba(0,0,0,0.28);          /* was ~0.14; bump opacity a bit */
-  backdrop-filter: blur(6px) saturate(1.05);
-  -webkit-backdrop-filter: blur(6px) saturate(1.05);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-}
-
-.wc-city {
-  font-size: var(--wc-city-size);
-  font-weight: 700;
-  letter-spacing: .2px;
-  opacity: var(--wc-text);
-  margin-bottom: 3px;
   text-align: center;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.65);
-}
-
-.wc-time {
-  font-size: var(--wc-time-size);
-  font-weight: 800;
-  letter-spacing: .3px;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.65);
+  width: fit-content;
+  min-height: 69px;
+  background: rgba(0,0,0,0.28) !important;
+  color: white;
 }
 
 /* Zone abbrev (PDT/CEST) – small & subtle */
 .wc-abbr {
-  font-size: var(--wc-abbr-size);
+  font-size: .72rem;
   font-weight: 650;
-  opacity: var(--wc-subtext);
+  opacity: .7;
   transform: translateY(-1px);
+  margin-right: 2px;
 }
 
 /* GMT+/- offset – even smaller */
 .wc-offset {
-  font-size: var(--wc-offset-size);
+  font-size: 0.68rem;
   font-weight: 600;
   opacity: .75;
   transform: translateY(-1px);
+  margin-right: 2px;
 }
 
 /* New: Yesterday/Tomorrow badge — very subtle */
@@ -319,13 +279,25 @@ function dayBadge(tz: string) {
   transform: translateY(-1px);
 }
 
-/* Responsive: hide the GMT on very narrow screens to save space */
-@media (max-width: 880px) {
-  .wc-offset { display: none; }
-}
-/* Ultra-narrow: also hide the abbrev, keep only time */
-@media (max-width: 660px) {
-  .wc-abbr { display: none; }
+.avatar-group {
+  /* flex m-auto space-x-0.5 */
+  display: flex;
+  margin: auto;
+  gap: 0.125rem; /* 2px */
 }
 
+.avatar {
+  /* w-8 h-8 border rounded-full flex items-center justify-center text-white text-xs font-medium */
+  width: 1.3rem; /* 32px */
+  height: 1.3rem; /* 32px */
+  background: white;
+  border: 2px solid white;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: gray;
+  font-size: 0.65rem; /* 12px */
+  font-weight: 500;
+}
 </style>

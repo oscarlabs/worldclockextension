@@ -1,107 +1,87 @@
 <template>
-  <div class="container">
-    <BackgroundImage />
-    <div class="top-clocks">
-      <WorldClocks />
+  <div class="main-container" :style="bgStyle" :aria-label="`Daily background for ${new Date().toLocaleDateString()}`">
+    <div class="min-width-max-container">
+      <div class="top-bar-container">
+
+        <Clock />
+
+      </div>
     </div>
 
-    <div class="center-stack">
-      <div class="date">{{ dateStr }}</div>
-      <div class="clock">{{ timeStr }}</div>
-<!--      <div class="greeting">Hello there<span v-if="name">, {{ name }}</span></div>-->
-      <FooterQuote />
+    <div>
+      <Calendar />
+      <Footer />
     </div>
-
-<!--    <div class="footer">-->
-<!--      -->
-<!--    </div>-->
   </div>
+
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
-import BackgroundImage from '@/components/BackgroundImage.vue'
-import WorldClocks from '@/components/WorldClocks.vue'
-import FooterQuote from '@/components/FooterQuote.vue'
-import { getSync, setSync } from '@/lib/storage'
+import {onMounted, onUnmounted, Ref, ref} from 'vue'
+import Clock from "@/components/Clock.vue";
+import Calendar from "@/components/Calendar.vue";
+import Footer from "@/components/Footer.vue";
+import { BACKGROUND_IMAGES } from '@/assets/backgrounds'
 
-const name = ref<string>('')
-const timeStr = ref<string>('00:00:00')
-const dateStr = ref<string>('')
+const bgStyle: Ref<Record<string, string>> = ref({})
 
-function tick() {
-  const now = new Date()
-  timeStr.value = now.toLocaleTimeString([], { hour12: false })
-  const day = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
-  const daySuffix = getDaySuffix(now.getDate())
-  dateStr.value = `${day}${daySuffix}`
-}
-function getDaySuffix(day: number) {
-  if (day > 3 && day < 21) return 'th'
-  switch (day % 10) {
-    case 1: return 'st'
-    case 2: return 'nd'
-    case 3: return 'rd'
-    default: return 'th'
+const setDailyBackground = (): void => {
+  const dayOfWeek = new Date().getDay() // 0 = Sunday, 6 = Saturday
+  const imageUrl = BACKGROUND_IMAGES[dayOfWeek % BACKGROUND_IMAGES.length]
+
+  bgStyle.value = {
+    backgroundImage: `url("${imageUrl}")`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
   }
 }
 
-let interval: number | undefined
-
-onMounted(async () => {
-  tick()
-  interval = window.setInterval(tick, 1000)
-  const stored = await getSync<{ name?: string }>('user_prefs')
-  if (stored?.name) name.value = stored.name
-})
-onUnmounted(() => {
-  if (interval) clearInterval(interval)
+onMounted(() => {
+  setDailyBackground()
 })
 
-async function onSettingsClick() {
-  const newName = prompt('Enter your name to personalize the greeting:', name.value || '')
-  if (newName !== null) {
-    name.value = newName.trim()
-    const prefs = await getSync<any>('user_prefs') || {}
-    prefs.name = name.value
-    await setSync('user_prefs', prefs)
-  }
-}
-function onTaskClick() {
-  alert('Tasks placeholder — hook up your task UI here.')
-}
 </script>
 
 <style scoped>
-.container {
-  position: relative; width: 100%; height: 100%;
-  display: flex; flex-direction: column; justify-content: end; align-items: center;
-  color: white;
-  overflow: hidden;
+
+/* Basic Reset & Body Styling */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
-.top-clocks {
-  position: fixed; top: 12px; left: 12px; right: 12px;
-  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+
+/* Converted Tailwind Classes */
+
+.main-container {
+  /* h-screen w-screen flex flex-col justify-between p-4 */
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem; /* 16px */
+  box-sizing: border-box; /* Important for padding not to add to width/height */
+}
+
+.min-width-max-container {
+  /* min-w-max */
+  min-width: max-content;
+}
+
+.top-bar-container {
+  /* w-fit h-fit fixed top-2.5 left-3 right-3 flex flex-wrap gap-1.5 justify-start z-[5] */
+  width: fit-content;
+  height: fit-content;
+  position: fixed;
+  top: 0.625rem;  /* 10px */
+  left: 0.75rem;   /* 12px */
+  right: 0.75rem;  /* 12px */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;  /* 6px */
+  justify-content: flex-start;
   z-index: 5;
 }
-.center-stack {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center;
-  z-index: 3; bottom: 12px;
-}
-.date { font-size: 2rem; text-shadow: 0 3px 6px rgba(0,0,0,.7); }
-.clock { font-size: 8rem; font-weight: 500; letter-spacing: 2px; text-shadow: 0 4px 8px rgba(0,0,0,.8); }
-.greeting { font-size: 2.2rem; text-shadow: 0 3px 6px rgba(0,0,0,.7); }
 
-.footer {
-  position: fixed; bottom: 12px; left: 0; right: 0;
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 0 20px; font-size: 1rem;
-}
-
-@media (max-width: 1024px) { .clock { font-size: 7rem; } }
-@media (max-width: 640px) {
-  .clock { font-size: 5rem; letter-spacing: 1px; }
-  .date { font-size: 1.6rem; } .greeting { font-size: 1.8rem; }
-}
 </style>
