@@ -1,61 +1,23 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
+// --- Define props to receive state from parent ---
+const props = defineProps<{
+  jiggleMode: boolean
+  clocks: ClockCfg[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'edit', group: Group): void
+  (e: 'delete', group: Group): void
+}>()
+
 const homeTz = ref(
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Lima'
 )
 
 // --- USER CONFIG: use IANA IDs (DST handled automatically) ---
 type ClockCfg = { label: string; tz: string }
-
-const clocks = ref<ClockCfg[]>([
-  // Your home
-  { label: 'Lima', tz: 'America/Lima' },
-  // South America
-  { label: 'Buenos Aires', tz: 'America/Argentina/Buenos_Aires' },
-  { label: 'Brasília',     tz: 'America/Sao_Paulo' },
-
-  // USA — Eastern
-  { label: 'New York', tz: 'America/New_York' },
-  { label: 'Boston',   tz: 'America/New_York' },
-  { label: 'Miami',    tz: 'America/New_York' },
-  { label: 'Atlanta',  tz: 'America/New_York' },
-
-  // USA — Central
-  { label: 'Chicago',  tz: 'America/Chicago' },
-  { label: 'Dallas',   tz: 'America/Chicago' },
-  { label: 'Houston',  tz: 'America/Chicago' },
-
-  // USA — Mountain
-  { label: 'Denver',   tz: 'America/Denver' },
-
-  // USA — Pacific
-  { label: 'Los Angeles', tz: 'America/Los_Angeles' },
-  { label: 'San Francisco', tz: 'America/Los_Angeles' },
-  { label: 'Seattle',    tz: 'America/Los_Angeles' },
-
-  // Europe (WET/UTC±1 and CET/CEST)
-  { label: 'London',  tz: 'Europe/London' },
-  // { label: 'Dublin',  tz: 'Europe/Dublin' },
-  // { label: 'Lisbon',  tz: 'Europe/Lisbon' },
-  { label: 'Paris',   tz: 'Europe/Paris' },
-  { label: 'Berlin',  tz: 'Europe/Berlin' },
-  { label: 'Madrid',  tz: 'Europe/Madrid' },
-
-  // Ukraine (single national zone; uses DST EET/EEST)
-  { label: 'Kyiv',  tz: 'Europe/Kyiv' },
-
-  // Australia & New Zealand (note DST differences + half-hour)
-  { label: 'Sydney',    tz: 'Australia/Sydney' },
-  // { label: 'Melbourne', tz: 'Australia/Melbourne' },
-  // { label: 'Brisbane',  tz: 'Australia/Brisbane' }, // no DST
-  // { label: 'Adelaide',  tz: 'Australia/Adelaide' }, // +0:30 offset vs Sydney/Melb
-  // { label: 'Perth',     tz: 'Australia/Perth' },
-  // { label: 'Auckland',  tz: 'Pacific/Auckland' },
-  // { label: 'Wellington',tz: 'Pacific/Auckland' },
-  { label: 'Queenstown', tz: 'Pacific/Auckland' },
-  // { label: 'Chatham Is.', tz: 'Pacific/Chatham' }   // +0:45 quirk
-])
 
 // Group strategy: 'zone' (recommended) or 'offset'
 const groupBy = ref<'zone' | 'offset'>('zone')
@@ -139,9 +101,10 @@ function zoneKey(tz: string) {
 
 // Merge cities that share the same key (zone or current offset)
 type Group = { key: string; labels: string[]; sampleTz: string }
+
 const groups = computed<Group[]>(() => {
   const map = new Map<string, Group>()
-  for (const c of clocks.value) {
+  for (const c of props.clocks) {
     const key = zoneKey(c.tz)
     const g = map.get(key) || { key, labels: [], sampleTz: c.tz }
     g.labels.push(c.label)
@@ -201,7 +164,21 @@ function dayBadge(tz: string) {
 </script>
 
 <template>
-  <div v-for="g in groups" :key="g.key" class="glass-card clock-component">
+  <div v-for="g in groups" :key="g.key"
+       class="glass-card clock-component"
+       :class="{ 'jiggle-active': jiggleMode }"
+  >
+    <button class="icon-button delete-icon" @click.stop="emit('delete', g)">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+      </svg>
+    </button>
+    <button class="icon-button edit-icon" @click.stop="emit('edit', g)">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+      </svg>
+    </button>
+
     <div>{{ g.labels.join(', ') }}</div>
     <div>
       {{ formatTime(now, g.sampleTz) }}
@@ -212,13 +189,46 @@ function dayBadge(tz: string) {
     <div class="avatar-group">
       <div class="avatar">JD</div>
       <div class="avatar">OP</div>
+    </div>
   </div>
 
+  <div class="glass-card clock-component glass-placeholder">
+    <div class="plus-placeholder">
+      <span class="plus-circle">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </span>
+    </div>
   </div>
 
 </template>
 
 <style scoped>
+/* --- Jiggle Animation --- */
+@keyframes jiggle {
+  0% { transform: rotate(-1deg) translate(1px, -1px); }
+  25% { transform: rotate(1.5deg) translate(-1px, 1px); }
+  50% { transform: rotate(-1.5deg) translate(1px, 1px); }
+  75% { transform: rotate(1deg) translate(-1px, -1px); }
+  100% { transform: rotate(-1deg) translate(1px, -1px); }
+}
+
+.jiggle-active {
+  animation-name: jiggle;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-duration: 0.5s;
+}
+
+/* Natural variations for the jiggle */
+.jiggle-active:nth-child(2n) { animation-duration: 0.45s; }
+.jiggle-active:nth-child(3n) { animation-duration: 0.55s; animation-delay: 0.1s; }
+.jiggle-active:nth-child(4n) { animation-duration: 0.4s; }
+
+.jiggle-active:active {
+  transform: scale(1); /* Disable scale effect while jiggling */
+}
 
 .glass-card {
   /* Base styles for the glass-like cards */
@@ -247,6 +257,48 @@ function dayBadge(tz: string) {
   min-height: 69px;
   background: rgba(0,0,0,0.28) !important;
   color: white;
+}
+
+.glass-placeholder{
+  min-width: 100px;
+}
+
+.plus-placeholder{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  /* --- Other styles from your screenshot for context --- */
+  width: 100px;
+  height: 69px;
+  color: #FFFFFF;
+}
+
+.plus-circle {
+  /* Text styling for the '+' */
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: bold;
+
+  /* --- Circle styling --- */
+  background-color: transparent; /* Or a different color if you want a filled circle */
+  border: 2px solid #FFFFFF; /* White border for the circle */
+  border-radius: 50%; /* Makes it a circle */
+
+  /* Ensure the circle is a square for perfect roundness */
+  width: 24px;   /* Adjust this to change circle size */
+  height: 24px;  /* Keep width and height equal */
+
+  /* --- Centering --- */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  /* --- THE FIX --- */
+  /* 1. Establish a positioning context for transform */
+  position: relative;
+  /* 2. Nudge the element down by 1 pixel. Adjust as needed! */
+  transform: translateY(-1px);
 }
 
 /* Zone abbrev (PDT/CEST) – small & subtle */
@@ -300,4 +352,47 @@ function dayBadge(tz: string) {
   font-size: 0.65rem; /* 12px */
   font-weight: 500;
 }
+
+
+/* --- Action Icon Styles --- */
+.icon-button {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(60, 60, 60, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 4px;
+
+  /* Hidden by default, appear with jiggle */
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 10;
+}
+
+.jiggle-active .icon-button {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.icon-button:hover {
+  background-color: rgba(30, 30, 30, 0.8);
+}
+
+.delete-icon {
+  top: -8px;
+  left: -8px;
+}
+
+.edit-icon {
+  top: -8px;
+  right: -8px;
+}
+
 </style>
