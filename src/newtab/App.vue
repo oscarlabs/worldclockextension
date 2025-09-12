@@ -25,13 +25,18 @@
   <transition name="fade">
     <div v-if="isModalVisible" class="modal-overlay" @click.self="closeModal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-content">
-        <header class="modal-header">
-          <h2 id="modal-title" class="modal-title-text">Settings</h2>
-          <button @click="closeModal" class="close-button" aria-label="Close modal">&times;</button>
-        </header>
         <div class="modal-body">
-          <p>This is where your settings or other modal content will live. If you add enough content, the vertical scrollbar will appear as requested.</p>
-          <p v-for="i in 20" :key="i">Scrollable content item #{{ i }}</p>
+          <div style="display: flex; justify-content: start ; align-items: center; flex-direction: row;">
+            <h2 id="modal-title" class="modal-title-text">
+              Add Clock
+            </h2>
+            <div style="width: 22px; height: 22px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM6.262 6.072a8.25 8.25 0 1 0 10.562-.766 4.5 4.5 0 0 1-1.318 1.357L14.25 7.5l.165.33a.809.809 0 0 1-1.086 1.085l-.604-.302a1.125 1.125 0 0 0-1.298.21l-.132.131c-.439.44-.439 1.152 0 1.591l.296.296c.256.257.622.374.98.314l1.17-.195c.323-.054.654.036.905.245l1.33 1.108c.32.267.46.694.358 1.1a8.7 8.7 0 0 1-2.288 4.04l-.723.724a1.125 1.125 0 0 1-1.298.21l-.153-.076a1.125 1.125 0 0 1-.622-1.006v-1.089c0-.298-.119-.585-.33-.796l-1.347-1.347a1.125 1.125 0 0 1-.21-1.298L9.75 12l-1.64-1.64a6 6 0 0 1-1.676-3.257l-.172-1.03Z" clip-rule="evenodd" />
+              </svg>
+            </div>
+          </div>
+          <CustomTimezoneAutocomplete v-model="selectedLocation" />
         </div>
       </div>
     </div>
@@ -44,8 +49,12 @@ import Clock from "@/components/Clock.vue";
 import Calendar from "@/components/Calendar.vue";
 import Footer from "@/components/Footer.vue";
 import { BACKGROUND_IMAGES } from '@/assets/backgrounds'
+import CustomTimezoneAutocomplete from "@/components/CustomTimezoneAutocomplete.vue";
+import type { TimezoneOption } from '@/assets/world_timezone';
 
 const bgStyle: Ref<Record<string, string>> = ref({})
+const selectedLocation = ref<TimezoneOption | null>(null);
+
 
 // --- MODAL LOGIC START ---
 const isModalVisible: Ref<boolean> = ref(false)
@@ -204,7 +213,7 @@ body {
   right: 0.75rem;  /* 12px */
   display: flex;
   flex-wrap: wrap;
-  gap: 0.9rem;  /* 6px */
+  gap: 0.5rem;  /* 6px */
   justify-content: flex-start;
   z-index: 5;
 }
@@ -225,21 +234,19 @@ body {
 
 .modal-content {
   /* The "Crystal Glass" effect */
-  background: rgba(150, 150, 150, 0.15); /* Semi-transparent white background */
+
   /*backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%); /* For Safari */
 
   /* Sizing and Layout */
-  width: 80%; /* Fixed width */
-  height: 550px; /* Fixed height */
-  border-radius: 12px;
-  border: 6px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  width: 350px; /* Fixed width */
+  height: 110px; /* Fixed height */
+
 
   /* Flexbox for internal layout (header/body) */
   display: flex;
   flex-direction: column;
-  color: white;
+  color: #ffffff;
 }
 
 .modal-header {
@@ -247,12 +254,12 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.5);
   flex-shrink: 0; /* Prevents header from shrinking */
 }
 
 .modal-title-text {
-  margin: 0;
+  margin: 5px;
   font-size: 1.25rem;
   font-weight: 600;
 }
@@ -268,7 +275,7 @@ body {
   border: none;
   font-size: 2rem;
   line-height: 1;
-  color: white;
+  color: black;
   cursor: pointer;
   opacity: 0.7;
   transition: opacity 0.2s ease;

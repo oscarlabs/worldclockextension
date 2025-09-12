@@ -10,6 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'edit', group: Group): void
   (e: 'delete', group: Group): void
+  (e: 'showSettingsModal'): void
 }>()
 
 const homeTz = ref(
@@ -183,7 +184,7 @@ function dayBadge(tz: string) {
     <div>
       {{ formatTime(now, g.sampleTz) }}
       <span v-if="displayAbbr(g.sampleTz)" class="wc-abbr">{{ displayAbbr(g.sampleTz) }}</span>
-      <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>
+<!--      <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>-->
       <span v-if="dayBadge(g.sampleTz)" class="wc-dayflag">{{ dayBadge(g.sampleTz) }}</span>
     </div>
     <div class="avatar-group">
@@ -192,15 +193,15 @@ function dayBadge(tz: string) {
     </div>
   </div>
 
-  <div class="glass-card clock-component glass-placeholder">
-    <div class="plus-placeholder">
-      <span class="plus-circle">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      </span>
-    </div>
-  </div>
+<!--  <div v-if="jiggleMode" class="glass-card clock-component glass-placeholder">-->
+<!--    <div class="plus-placeholder" @click="$emit('showSettingsModal')">-->
+<!--      <span class="plus-circle">-->
+<!--        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">-->
+<!--          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />-->
+<!--        </svg>-->
+<!--      </span>-->
+<!--    </div>-->
+<!--  </div>-->
 
 </template>
 
@@ -234,7 +235,8 @@ function dayBadge(tz: string) {
   /* Base styles for the glass-like cards */
   display: flex;
   color: white;
-  font-weight: 500;
+  font-size: small;
+  font-weight: 400;
   padding: 0.5rem; /* 8px */
   user-select: none;
   border-radius: 0.75rem; /* 12px */
@@ -254,7 +256,7 @@ function dayBadge(tz: string) {
   flex-direction: column;
   text-align: center;
   width: fit-content;
-  min-height: 69px;
+  min-height: 60px;
   background: rgba(0,0,0,0.28) !important;
   color: white;
 }
@@ -321,7 +323,7 @@ function dayBadge(tz: string) {
 
 /* New: Yesterday/Tomorrow badge — very subtle */
 .wc-dayflag {
-  padding: 2px 6px;
+  padding: 2px 2px;
   border-radius: 999px;
   background: rgba(255,255,255,0.08);
   font-size: .62rem;
@@ -340,8 +342,8 @@ function dayBadge(tz: string) {
 
 .avatar {
   /* w-8 h-8 border rounded-full flex items-center justify-center text-white text-xs font-medium */
-  width: 1.3rem; /* 32px */
-  height: 1.3rem; /* 32px */
+  width: 1.2rem; /* 32px */
+  height: 1.2rem; /* 32px */
   background: white;
   border: 2px solid white;
   border-radius: 9999px;
@@ -349,8 +351,8 @@ function dayBadge(tz: string) {
   align-items: center;
   justify-content: center;
   color: gray;
-  font-size: 0.65rem; /* 12px */
-  font-weight: 500;
+  font-size: 0.8rem; /* 12px */
+  font-weight: bold;
 }
 
 
@@ -386,13 +388,13 @@ function dayBadge(tz: string) {
 }
 
 .delete-icon {
-  top: -8px;
-  left: -8px;
+  top: -5px;
+  left: -5px;
 }
 
 .edit-icon {
-  top: -8px;
-  right: -8px;
+  top: -5px;
+  right: -5px;
 }
 
 </style>
