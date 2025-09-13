@@ -47,6 +47,10 @@ import { timezones, type TimezoneOption } from '@/assets/world_timezone';
 // Use Vue 3.4+ 'defineModel' for the cleanest v-model implementation
 const model = defineModel<TimezoneOption | null>();
 
+const emit = defineEmits<{
+  (e: 'timezone-selected', payload: TimezoneOption): void
+}>();
+
 // --- Component State ---
 const isOpen = ref(false);
 const searchQuery = ref('');
@@ -92,8 +96,10 @@ const onBlur = () => {
 };
 
 const selectTimezone = (timezone: TimezoneOption) => {
-  model.value = timezone;
-  searchQuery.value = timezone.label; // Update input text to match selection
+  // model.value = timezone;
+  emit('timezone-selected', timezone);
+
+  searchQuery.value = ""; // Update input text to match selection
   isOpen.value = false;
 };
 
@@ -152,9 +158,9 @@ const scrollToActiveItem = async () => {
 };
 
 // When the model is updated from the parent, sync the input text
-watch(model, (newValue) => {
-  searchQuery.value = newValue?.label || '';
-});
+// watch(model, (newValue) => {
+//   searchQuery.value = newValue?.label || '';
+// });
 
 // Watch for the dropdown opening to calculate its position
 watch(isOpen, (newValue) => {

@@ -11,7 +11,7 @@
     <div class="min-width-max-container">
       <div class="top-bar-container">
 
-        <Clock :jiggleMode="isModalVisible" :clocks="userClocks"/>
+        <Clock :jiggleMode="isModalVisible" :clocks="userClocks" @edit-clock="handleEditClock" @delete-clock="handleDeleteClock"/>
 
       </div>
     </div>
@@ -36,7 +36,7 @@
               </svg>
             </div>
           </div>
-          <CustomTimezoneAutocomplete v-model="selectedLocation" />
+          <CustomTimezoneAutocomplete v-model="selectedLocation" @timezone-selected="handleTimezoneSelection"/>
         </div>
       </div>
     </div>
@@ -53,12 +53,18 @@ import CustomTimezoneAutocomplete from "@/components/CustomTimezoneAutocomplete.
 import type { TimezoneOption } from '@/assets/world_timezone';
 
 const bgStyle: Ref<Record<string, string>> = ref({})
-const selectedLocation = ref<TimezoneOption | null>(null);
+
+// A constant for our storage key to avoid "magic strings".
+const STORAGE_KEY = 'userSelectedClocks';
+
+// This is oIur reactive state that drives the UI. It will be initialized with data from storage.
+const userClocks = ref<TimezoneOption[]>([]);
+// const selectedLocation = ref<TimezoneOption | null>(null);
 
 
 // --- MODAL LOGIC START ---
 const isModalVisible: Ref<boolean> = ref(false)
-const pressTimer = ref(null);
+const pressTimer: Ref<number | null> = ref(null);
 
 const openModal = (): void => {
   isModalVisible.value = true
@@ -92,7 +98,7 @@ onMounted(() => {
  */
 const startPress = () => {
   // Clear any existing timer to prevent conflicts
-  clearTimeout(pressTimer.value);
+  clearTimeout(pressTimer.value ?? undefined);
 
   // Set a new timer
   pressTimer.value = setTimeout(() => {
@@ -100,81 +106,88 @@ const startPress = () => {
   }, 2000);
 };
 
-/**
- * Cancels the timer if the user releases the pointer before the duration is met.
- */
 const cancelPress = () => {
-  clearTimeout(pressTimer.value);
+  clearTimeout(pressTimer.value ?? undefined);
 };
 
-/**
- * Closes the modal.
- */
 const closeModal = () => {
   isModalVisible.value = false;
   pressTimer.value = null;
 };
 
-// --- LIFECYCLE HOOK ---
-/**
- * Clean up the timer when the component is unmounted to prevent memory leaks.
- */
 onUnmounted(() => {
-  clearTimeout(pressTimer.value);
+  clearTimeout(pressTimer.value ?? undefined);
+})
+
+onMounted(async () => {
+  try {
+    // chrome.storage.sync.get returns a promise. We await its resolution.
+    // We provide a default value in case the key doesn't exist yet for a new user.
+    const storedData = await chrome.storage.sync.get({[STORAGE_KEY]: []});
+
+    // The data is returned as an object, e.g., { userSelectedClocks: [...] }
+    // We assign the array to our reactive ref.
+    if (storedData[STORAGE_KEY]) {
+      userClocks.value = storedData[STORAGE_KEY];
+    }
+  } catch (error) {
+    console.error("Error loading clocks from storage:", error);
+    // Handle the error appropriately, maybe show a message to the user.
+  }
 });
 
+/**
+ * Saves a new timezone to the user's synchronized storage.
+ * @param {TimezoneOption} timezone - The new timezone object to add.
+ */
+const handleTimezoneSelection = async (timezone: TimezoneOption) => {
+  console.log('Full object received from child component:', timezone);
 
+  const alreadyExists = userClocks.value.some(clock => clock.id === timezone.id);
 
+  if (alreadyExists) {
+    console.warn(`Timezone "${timezone.label}" already exists. Aborting save.`);
+    // Optionally, provide feedback to the user here.
+    return;
+  }
 
-const userClocks = ref([
-  // Your home
-  { label: 'Lima', tz: 'America/Lima' },
-  // South America
-  { label: 'Buenos Aires', tz: 'America/Argentina/Buenos_Aires' },
-  { label: 'Brasília',     tz: 'America/Sao_Paulo' },
+  // Create the updated list.
+  const updatedClocks = [...userClocks.value, timezone];
 
-  // USA — Eastern
-  { label: 'New York', tz: 'America/New_York' },
-  { label: 'Boston',   tz: 'America/New_York' },
-  { label: 'Miami',    tz: 'America/New_York' },
-  { label: 'Atlanta',  tz: 'America/New_York' },
+  try {
+    // Save the entire updated array back to chrome.storage.sync.
+    // The .set method takes an object with the key and the new value.
+    await chrome.storage.sync.set({ [STORAGE_KEY]: updatedClocks });
 
-  // USA — Central
-  { label: 'Chicago',  tz: 'America/Chicago' },
-  { label: 'Dallas',   tz: 'America/Chicago' },
-  { label: 'Houston',  tz: 'America/Chicago' },
+    // IMPORTANT: Update the local reactive state only AFTER the save is successful.
+    // This ensures your UI is a true reflection of the saved state.
+    userClocks.value = updatedClocks;
 
-  // USA — Mountain
-  { label: 'Denver',   tz: 'America/Denver' },
+  } catch (error) {
+    console.error("Error saving clock to storage:", error);
+    // Handle potential errors, e.g., if storage quota is exceeded.
+  }
+};
 
-  // USA — Pacific
-  { label: 'Los Angeles', tz: 'America/Los_Angeles' },
-  { label: 'San Francisco', tz: 'America/Los_Angeles' },
-  { label: 'Seattle',    tz: 'America/Los_Angeles' },
+const handleEditClock = (clock) => {
+  console.log('Edit Clock:', clock);
+}
 
-  // Europe (WET/UTC±1 and CET/CEST)
-  { label: 'London',  tz: 'Europe/London' },
-  // { label: 'Dublin',  tz: 'Europe/Dublin' },
-  // { label: 'Lisbon',  tz: 'Europe/Lisbon' },
-  { label: 'Paris',   tz: 'Europe/Paris' },
-  { label: 'Berlin',  tz: 'Europe/Berlin' },
-  { label: 'Madrid',  tz: 'Europe/Madrid' },
+const handleDeleteClock = async (clockToDelete: TimezoneOption) => {
 
-  // Ukraine (single national zone; uses DST EET/EEST)
-  { label: 'Kyiv',  tz: 'Europe/Kyiv' },
+  const updatedClocks = userClocks.value.filter(clock => clock.tz !== clockToDelete.tz);
 
-  // Australia & New Zealand (note DST differences + half-hour)
-  { label: 'Sydney',    tz: 'Australia/Sydney' },
-  // { label: 'Melbourne', tz: 'Australia/Melbourne' },
-  // { label: 'Brisbane',  tz: 'Australia/Brisbane' }, // no DST
-  // { label: 'Adelaide',  tz: 'Australia/Adelaide' }, // +0:30 offset vs Sydney/Melb
-  // { label: 'Perth',     tz: 'Australia/Perth' },
-  // { label: 'Auckland',  tz: 'Pacific/Auckland' },
-  // { label: 'Wellington',tz: 'Pacific/Auckland' },
-  { label: 'Queenstown', tz: 'Pacific/Auckland' },
-  // { label: 'Chatham Is.', tz: 'Pacific/Chatham' }   // +0:45 quirk
-])
+  try {
+    // Save the new, filtered array back to storage.
+    await chrome.storage.sync.set({ [STORAGE_KEY]: updatedClocks });
 
+    // Update the local state to reflect the change in the UI.
+    userClocks.value = updatedClocks;
+
+  } catch (error) {
+    console.error("Error deleting clock from storage:", error);
+  }
+};
 </script>
 
 <style scoped>
@@ -183,6 +196,7 @@ const userClocks = ref([
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  user-select: none;
 }
 
 /* Converted Tailwind Classes */
@@ -215,7 +229,7 @@ body {
   flex-wrap: wrap;
   gap: 0.5rem;  /* 6px */
   justify-content: flex-start;
-  z-index: 5;
+  z-index: 100; /* Ensure it's on top of everything */
 }
 
 /* --- MODAL STYLES START --- */
@@ -239,8 +253,8 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(180%); /* For Safari */
 
   /* Sizing and Layout */
-  width: 350px; /* Fixed width */
-  height: 110px; /* Fixed height */
+  width: 370px; /* Fixed width */
+  height: 130px; /* Fixed height */
 
 
   /* Flexbox for internal layout (header/body) */
