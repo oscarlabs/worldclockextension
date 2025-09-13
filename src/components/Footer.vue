@@ -83,6 +83,7 @@ onMounted(() => {
   font-size: 1.25rem; /* 20px */
   line-height: 1.75rem; /* 28px */
   text-shadow: 0 4px 8px rgba(0,0,0,.8);
+  user-select: none;
 }
 
 .icon-size {

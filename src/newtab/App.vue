@@ -261,6 +261,7 @@ body {
   display: flex;
   flex-direction: column;
   color: #ffffff;
+  user-select: none;
 }
 
 .modal-header {
@@ -282,6 +283,7 @@ body {
   padding: 1.5rem;
   overflow-y: auto; /* The requested vertical scroll */
   flex-grow: 1; /* Allows body to fill available space */
+  user-select: none;
 }
 
 .close-button {

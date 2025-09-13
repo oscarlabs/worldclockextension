@@ -32,6 +32,21 @@ onMounted(() => {
 })
 onUnmounted(() => { if (handle) clearInterval(handle) })
 
+const timeFmt24hCache = new Map<string, Intl.DateTimeFormat>()
+function fmtTime24h(d: Date, tz: string) {
+  const k = `24h|${tz}` // Use a simple key
+  if (!timeFmt24hCache.has(k)) {
+    // Using 'en-GB' locale is a reliable way to get a 24-hour HH:mm format
+    timeFmt24hCache.set(k, new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: tz
+    }))
+  }
+  return timeFmt24hCache.get(k)!.format(d) // Returns "09:30", "14:15", etc.
+}
+
 // Intl helpers (cache formatters per tz)
 const locale = navigator.language || 'en-US'
 const timeFmtCache = new Map<string, Intl.DateTimeFormat>()
@@ -111,11 +126,25 @@ const groups = computed<Group[]>(() => {
     g.labels.push(c.label)
     map.set(key, g)
   }
-  // Optional: sort by current time
+
   const arr = Array.from(map.values())
-  const sortByTime = (g: Group) =>
-      parseInt(fmtFor(g.tz).formatToParts(now.value).find(p => p.type === 'hour')?.value || '0', 10)
-  return arr.sort((a, b) => sortByTime(a) - sortByTime(b))
+
+  // --- REPLACE THE OLD SORTING LOGIC WITH THIS ---
+  arr.sort((a, b) => {
+    // 1. Primary Sort: by day difference (-1, 0, 1)
+    const dayDiff = dayDelta(a.tz) - dayDelta(b.tz)
+    if (dayDiff !== 0) {
+      return dayDiff
+    }
+
+    // 2. Secondary Sort: by 24-hour time
+    // String comparison works perfectly for "HH:mm" format
+    const timeA = fmtTime24h(now.value, a.tz)
+    const timeB = fmtTime24h(now.value, b.tz)
+    return timeA.localeCompare(timeB)
+  })
+
+  return arr
 })
 
 // (Optional) validate a new timezone id before saving it
