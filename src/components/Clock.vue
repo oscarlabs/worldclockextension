@@ -5,10 +5,11 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 const props = defineProps<{
   jiggleMode: boolean
   clocks: ClockCfg[]
+  teamMembers: []
 }>()
 
 const emit = defineEmits<{
-  (e: 'edit-clock', group: Group): void
+  (e: 'editClock', group: Group): void
   (e: 'deleteClock', group: Group): void
   (e: 'showSettingsModal'): void
 }>()
@@ -129,7 +130,6 @@ const groups = computed<Group[]>(() => {
 
   const arr = Array.from(map.values())
 
-  // --- REPLACE THE OLD SORTING LOGIC WITH THIS ---
   arr.sort((a, b) => {
     // 1. Primary Sort: by day difference (-1, 0, 1)
     const dayDiff = dayDelta(a.tz) - dayDelta(b.tz)
@@ -217,8 +217,7 @@ function dayBadge(tz: string) {
       <span v-if="dayBadge(g.tz)" class="wc-dayflag">{{ dayBadge(g.tz) }}</span>
     </div>
     <div class="avatar-group">
-      <div class="avatar">JD</div>
-      <div class="avatar">OP</div>
+      <div v-for="teamMember in props.teamMembers.filter(tm => tm.tz === g.tz)" class="avatar">{{teamMember.name}}</div>
     </div>
   </div>
 
