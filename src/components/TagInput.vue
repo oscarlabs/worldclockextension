@@ -20,7 +20,8 @@
     <input
         ref="inputRef"
         type="text"
-        placeholder="Add Team member e.g OP"
+        placeholder="Add Team member (e.g OP)"
+        maxlength="2"
         v-model="newTeamMember"
         @keydown.enter.prevent="addTeamMember"
     />
