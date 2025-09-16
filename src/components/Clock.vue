@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-// --- Define props to receive state from parent ---
 const props = defineProps<{
   jiggleMode: boolean
   clocks: ClockCfg[]
@@ -48,6 +47,36 @@ function fmtTime24h(d: Date, tz: string) {
   return timeFmt24hCache.get(k)!.format(d) // Returns "09:30", "14:15", etc.
 }
 
+/**
+ * Determines if it's day or night based on a 24-hour time string.
+ * Assumes 'day' is from 6:00 (inclusive) to 18:00 (exclusive).
+ *
+ * @param {string | undefined | null} time24h - The time in "HH:MM" format (e.g., "09:30", "21:15").
+ * @returns {'day' | 'night'} - The period of the day. Defaults to 'night' on invalid input.
+ */
+function isDayOrNight(time24h) {
+  // Guard against null or undefined input
+  if (!time24h) {
+    return 'night';
+  }
+
+  // Extract the hour part of the string and convert it to an integer.
+  // Using parseInt is safe and efficient.
+  const hour = parseInt(time24h.substring(0, 2), 10);
+
+  // Check if parsing was successful
+  if (isNaN(hour)) {
+    return 'night';
+  }
+
+  // Check if the hour falls within the daytime range (6 AM to 5:59 PM)
+  if (hour >= 6 && hour < 18) {
+    return 'day';
+  } else {
+    return 'night';
+  }
+}
+
 // Intl helpers (cache formatters per tz)
 const locale = navigator.language || 'en-US'
 const timeFmtCache = new Map<string, Intl.DateTimeFormat>()
@@ -61,7 +90,8 @@ function fmtFor(tz: string) {
   return timeFmtCache.get(k)!
 }
 function formatTime(d: Date, tz: string) {
-  return fmtFor(tz).format(d)
+  // return fmtFor(tz).format(d)
+  return fmtTime24h(d, tz)
 }
 
 // Zone name/offset (short like PST / GMT-05:00)
@@ -217,19 +247,23 @@ function dayBadge(tz: string) {
       <span v-if="dayBadge(g.tz)" class="wc-dayflag">{{ dayBadge(g.tz) }}</span>
     </div>
     <div class="avatar-group">
-      <div v-for="teamMember in props.teamMembers.filter(tm => tm.tz === g.tz)" class="avatar">{{teamMember.name}}</div>
+      <div class="daytime" style="min-width: 1.2rem">
+        <span class="daylight-avatar">
+          <svg v-if="isDayOrNight(formatTime(now, g.tz)) === 'day'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+            <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z" />
+          </svg>
+          <svg v-if="isDayOrNight(formatTime(now, g.tz)) === 'night'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+            <path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 0 1 .162.819A8.97 8.97 0 0 0 9 6a9 9 0 0 0 9 9 8.97 8.97 0 0 0 3.463-.69.75.75 0 0 1 .981.98 10.503 10.503 0 0 1-9.694 6.46c-5.799 0-10.5-4.7-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 0 1 .818.162Z" clip-rule="evenodd" />
+          </svg>
+        </span>
+      </div>
+
+      <div class="teammembers" style="display: flex; gap: 3px; /* 2px */">
+        <div v-for="teamMember in props.teamMembers.filter(tm => tm.tz === g.tz)" class="avatar">{{teamMember.name}}</div>
+      </div>
+
     </div>
   </div>
-
-<!--  <div v-if="jiggleMode" class="glass-card clock-component glass-placeholder">-->
-<!--    <div class="plus-placeholder" @click="$emit('showSettingsModal')">-->
-<!--      <span class="plus-circle">-->
-<!--        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">-->
-<!--          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />-->
-<!--        </svg>-->
-<!--      </span>-->
-<!--    </div>-->
-<!--  </div>-->
 
 </template>
 
@@ -290,48 +324,6 @@ function dayBadge(tz: string) {
   user-select: none;
 }
 
-.glass-placeholder{
-  min-width: 100px;
-}
-
-.plus-placeholder{
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  /* --- Other styles from your screenshot for context --- */
-  width: 100px;
-  height: 69px;
-  color: #FFFFFF;
-}
-
-.plus-circle {
-  /* Text styling for the '+' */
-  color: #FFFFFF;
-  font-size: 16px;
-  font-weight: bold;
-
-  /* --- Circle styling --- */
-  background-color: transparent; /* Or a different color if you want a filled circle */
-  border: 2px solid #FFFFFF; /* White border for the circle */
-  border-radius: 50%; /* Makes it a circle */
-
-  /* Ensure the circle is a square for perfect roundness */
-  width: 24px;   /* Adjust this to change circle size */
-  height: 24px;  /* Keep width and height equal */
-
-  /* --- Centering --- */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  /* --- THE FIX --- */
-  /* 1. Establish a positioning context for transform */
-  position: relative;
-  /* 2. Nudge the element down by 1 pixel. Adjust as needed! */
-  transform: translateY(-1px);
-}
-
 /* Zone abbrev (PDT/CEST) – small & subtle */
 .wc-abbr {
   font-size: .72rem;
@@ -365,8 +357,10 @@ function dayBadge(tz: string) {
 .avatar-group {
   /* flex m-auto space-x-0.5 */
   display: flex;
+  justify-content: space-between;
   margin: auto;
-  gap: 0.125rem; /* 2px */
+  gap: 8px; /* 2px */
+  width: 100%;
 }
 
 .avatar {
@@ -383,6 +377,21 @@ function dayBadge(tz: string) {
   font-size: 0.8rem; /* 12px */
   font-weight: bold;
 }
+
+.daylight-avatar {
+  /* w-8 h-8 border rounded-full flex items-center justify-center text-white text-xs font-medium */
+  width: 1.2rem; /* 32px */
+  height: 1.2rem; /* 32px */
+  background: transparent;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8rem; /* 12px */
+  font-weight: bold;
+}
+
 
 
 /* --- Action Icon Styles --- */

@@ -1,6 +1,7 @@
 <template>
   <div class="autocomplete-root" ref="rootEl">
     <input
+        name="timezone-autocomplete"
         type="text"
         class="autocomplete-input"
         :value="searchQuery"

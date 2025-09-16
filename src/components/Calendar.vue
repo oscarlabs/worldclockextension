@@ -7,9 +7,9 @@ const dateStr = ref<string>('')
 function tick() {
   const now = new Date()
   timeStr.value = now.toLocaleTimeString([], { hour12: false })
-  const day = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
-  const daySuffix = getDaySuffix(now.getDate())
-  dateStr.value = `${day}${daySuffix}`
+  const day = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+  // const daySuffix = getDaySuffix(now.getDate())
+  dateStr.value = `${day}`
 }
 
 function getDaySuffix(day: number) {

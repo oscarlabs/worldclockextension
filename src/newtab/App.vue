@@ -269,7 +269,7 @@ const handleAddTeamMember = async (teamMember: string) => {
 }
 
 const handleRemoveTeamMember = async (teamMember: string) => {
-  teamMembers.value = teamMembers.value.filter(teamMember => teamMembers.name !== teamMember)
+  teamMembers.value = teamMembers.value.filter(tm => tm.name !== teamMember)
 
   const updatedTeamMebers = [...teamMembers.value]
 
