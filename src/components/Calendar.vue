@@ -49,6 +49,7 @@ onUnmounted(() => {
 .center-text-container {
   margin: auto;
   color: white;
+  user-select: none;
 }
 
 .date-text {
@@ -59,6 +60,7 @@ onUnmounted(() => {
   text-align: center;
   /* NOTE: text-shadow is a custom utility. This is a common interpretation of 'lg'. */
   text-shadow: 0 4px 8px rgba(0,0,0,.8);
+  user-select: none;
 }
 
 .time-text {
@@ -68,5 +70,6 @@ onUnmounted(() => {
   margin: auto;
   text-align: center;
   text-shadow: 0 4px 8px rgba(0,0,0,.8);
+  user-select: none;
 }
 </style>
