@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
   "name": "WorldClock Extension by Oscar",
-  "version": "1.0.0",
-  "description": "A beautiful new tab extension rebuilt with Vue 3 + Vite.",
+  "version": "2.0.0",
+  "description": "A beautiful newtab showing teammates day from morning coffee to evening wind down to build empathy and human touch to remote work",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
-    "https://source.unsplash.com/*",
     "https://images.unsplash.com/*"
   ],
   "content_security_policy": {

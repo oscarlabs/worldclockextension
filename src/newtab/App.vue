@@ -18,7 +18,7 @@
 
     <div>
       <Calendar />
-      <Footer @show-settings-modal="openModal" />
+      <Footer @show-settings-modal="openModal" :attribution="bgAttribution" />
     </div>
   </div>
 
@@ -87,15 +87,21 @@ import CustomTimezoneAutocomplete from "@/components/CustomTimezoneAutocomplete.
 import type { TimezoneOption } from '@/assets/world_timezone';
 import TagInput from "@/components/TagInput.vue";
 
-const bgStyle: Ref<Record<string, string>> = ref({})
+import { getBackgroundImage, type UnsplashImage } from '@/lib/unsplash.service'
 
-const LOCAL_STORAGE = true
+const bgStyle: Ref<Record<string, string>> = ref({})
+const bgAttribution = ref<{ name: string; url: string; description: string; unsplashUrl: string; locationCity: string; locationCountry: string } | null>(null); // For attribution
+
+const LOCAL_STORAGE = false
+
+// --- Caching and Background Logic ---
+const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
 
 // A constant for our storage key to avoid "magic strings".
 const STORAGE_KEY = 'userSelectedClocks';
 const MEMBERS_KEY = 'userTeamMembers';
 
-// This is oIur reactive state that drives the UI. It will be initialized with data from storage.
+// This is our reactive state that drives the UI. It will be initialized with data from storage.
 const userClocks = ref<TimezoneOption[]>([]);
 
 const selectedTimezone:Ref<string | null> = ref(null);
@@ -123,22 +129,52 @@ const openModal = (): void => {
 // }
 // --- MODAL LOGIC END ---
 
-const setDailyBackground = (): void => {
-  const dayOfWeek = new Date().getDay() // 0 = Sunday, 6 = Saturday
-  const imageUrl = BACKGROUND_IMAGES[dayOfWeek % BACKGROUND_IMAGES.length]
+const setDailyBackground = async (): Promise<void> => {
+  const cachedData = localStorage.getItem(BACKGROUND_CACHE_KEY);
+  const today = new Date().toDateString(); // "Fri Sep 26 2025"
 
-  bgStyle.value = {
-    backgroundImage: `url("${imageUrl}")`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat'
+  if (cachedData) {
+    const { date, image } = JSON.parse(cachedData);
+    if (date === today) {
+      // Use cached image if it's from today
+      bgStyle.value = { backgroundImage: `url("${image.url}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
+      bgAttribution.value = { name: image.authorName, url: image.authorUrl, description: image.description, unsplashUrl: image.unsplashUrl, locationCity: image.locationCity, locationCountry: image.locationCountry };
+      return;
+    }
   }
-}
 
-onMounted(() => {
-  setDailyBackground()
-})
+  // --- If no valid cache, fetch a new image ---
 
+  // 1. Determine a query: Pick a random city from the user's clocks or use a default
+  let query = 'new zealand nature'; // A nice fallback
+
+  const queryOptions = ["nature", "city", "art", "sightseeing"]
+  const randomIndex = Math.floor(Math.random() * queryOptions.length);
+  const randomOption = queryOptions[randomIndex];
+
+  if (userClocks.value.length > 0) {
+    const randomClock = userClocks.value[Math.floor(Math.random() * userClocks.value.length)];
+    // Extract city name from label, e.g., "New York" from "New York, Boston"
+    query = randomClock.label.split(',')[0];
+    query = query.concat(" ", randomOption)
+  }
+
+  // 2. Fetch image from our service
+  const image: UnsplashImage | null = await getBackgroundImage(query);
+
+  if (image) {
+    // 3. Set background and cache the new image
+    bgStyle.value = { backgroundImage: `url("${image.url}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
+    bgAttribution.value = { name: image.authorName, url: image.authorUrl, description: image.description, unsplashUrl: image.unsplashUrl, locationCity: image.locationCity, locationCountry: image.locationCountry };
+    localStorage.setItem(BACKGROUND_CACHE_KEY, JSON.stringify({ date: today, image }));
+  } else {
+    // 4. Fallback to static images if the API fails
+    // console.log('Falling back to static background image.');
+    const dayOfWeek = new Date().getDay();
+    const fallbackUrl = BACKGROUND_IMAGES[dayOfWeek % BACKGROUND_IMAGES.length];
+    bgStyle.value = { backgroundImage: `url("${fallbackUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
+  }
+};
 
 // --- METHODS ---
 /**
@@ -190,6 +226,8 @@ onMounted(async () => {
       userClocks.value = JSON.parse(storedDataString || '[]');
       teamMembers.value = JSON.parse(storedMembersString || '[]');
     }
+
+    setDailyBackground()
 
   } catch (error) {
     console.error("Error loading clocks from storage:", error);
@@ -247,6 +285,7 @@ const handleEditClock = async (clockToEdit: TimezoneOption) => {
 }
 
 const handleAddTeamMember = async (teamMember: string) => {
+
   teamMembers.value.push({'name': teamMember, 'tz': selectedTimezone.value})
 
   const updatedTeamMebers = [...teamMembers.value]
@@ -271,16 +310,16 @@ const handleAddTeamMember = async (teamMember: string) => {
 const handleRemoveTeamMember = async (teamMember: string) => {
   teamMembers.value = teamMembers.value.filter(tm => tm.name !== teamMember)
 
-  const updatedTeamMebers = [...teamMembers.value]
+  const updatedTeamMembers = [...teamMembers.value]
 
   try {
 
     if(!LOCAL_STORAGE){
-      await chrome.storage.sync.set({ [MEMBERS_KEY]: updatedTeamMebers });
+      await chrome.storage.sync.set({ [MEMBERS_KEY]: updatedTeamMembers });
 
       // userClocks.value = updatedClocks;
     }else{
-      localStorage.setItem(MEMBERS_KEY, JSON.stringify(updatedTeamMebers));
+      localStorage.setItem(MEMBERS_KEY, JSON.stringify(updatedTeamMembers));
 
       // userClocks.value = updatedClocks;
     }
