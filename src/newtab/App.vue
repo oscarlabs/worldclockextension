@@ -87,15 +87,18 @@ import CustomTimezoneAutocomplete from "@/components/CustomTimezoneAutocomplete.
 import type { TimezoneOption } from '@/assets/world_timezone';
 import TagInput from "@/components/TagInput.vue";
 
-import { getBackgroundImage, type UnsplashImage } from '@/lib/unsplash.service'
+// Import our new/updated services
+import { fetchAndDownloadImage } from '@/lib/unsplash.service';
+import { getStoredImage, storeImage, cleanupOldImages } from '@/lib/database.service';
 
 const bgStyle: Ref<Record<string, string>> = ref({})
 const bgAttribution = ref<{ name: string; url: string; description: string; unsplashUrl: string; locationCity: string; locationCountry: string } | null>(null); // For attribution
+const currentBgUrl = ref<string | null>(null); // To manage object URL lifecycle
 
 const LOCAL_STORAGE = false
 
 // --- Caching and Background Logic ---
-const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
+// const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
 
 // A constant for our storage key to avoid "magic strings".
 const STORAGE_KEY = 'userSelectedClocks';
@@ -130,46 +133,74 @@ const openModal = (): void => {
 // --- MODAL LOGIC END ---
 
 const setDailyBackground = async (): Promise<void> => {
-  const cachedData = localStorage.getItem(BACKGROUND_CACHE_KEY);
-  const today = new Date().toDateString(); // "Fri Sep 26 2025"
+  // A consistent ID for the day, e.g., '2025-09-27'
+  const todayId = new Date().toISOString().split('T')[0];
 
-  if (cachedData) {
-    const { date, image } = JSON.parse(cachedData);
-    if (date === today) {
-      // Use cached image if it's from today
-      bgStyle.value = { backgroundImage: `url("${image.url}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
-      bgAttribution.value = { name: image.authorName, url: image.authorUrl, description: image.description, unsplashUrl: image.unsplashUrl, locationCity: image.locationCity, locationCountry: image.locationCountry };
-      return;
-    }
+  // 1. Check IndexedDB first
+  const cachedImage = await getStoredImage(todayId);
+
+  if (cachedImage) {
+    // console.log('Image loaded from IndexedDB cache.');
+    // Create a temporary local URL from the blob
+    currentBgUrl.value = URL.createObjectURL(cachedImage.blob);
+    bgStyle.value = { backgroundImage: `url("${currentBgUrl.value}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
+
+    // Populate attribution directly from the cached metadata
+    bgAttribution.value = {
+      name: cachedImage.authorName,
+      url: cachedImage.authorUrl,
+      description: cachedImage.description,
+      unsplashUrl: cachedImage.unsplashUrl,
+      locationCity: cachedImage.locationCity,
+      locationCountry: cachedImage.locationCountry
+    };
+    return;
   }
 
-  // --- If no valid cache, fetch a new image ---
-
-  // 1. Determine a query: Pick a random city from the user's clocks or use a default
+  // 2. If not in DB, fetch from Unsplash
+  // console.log('No valid cache found. Fetching new image from Unsplash.');
   let query = 'new zealand nature'; // A nice fallback
-
-  const queryOptions = ["nature", "city", "art", "sightseeing"]
+  const queryOptions = ["nature", "city", "art", "sightseeing"];
   const randomIndex = Math.floor(Math.random() * queryOptions.length);
   const randomOption = queryOptions[randomIndex];
 
   if (userClocks.value.length > 0) {
     const randomClock = userClocks.value[Math.floor(Math.random() * userClocks.value.length)];
-    // Extract city name from label, e.g., "New York" from "New York, Boston"
-    query = randomClock.label.split(',')[0];
-    query = query.concat(" ", randomOption)
+    query = randomClock.label.split(',')[0] + " " + randomOption;
   }
 
-  // 2. Fetch image from our service
-  const image: UnsplashImage | null = await getBackgroundImage(query);
+  const newImage = await fetchAndDownloadImage(query);
 
-  if (image) {
-    // 3. Set background and cache the new image
-    bgStyle.value = { backgroundImage: `url("${image.url}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
-    bgAttribution.value = { name: image.authorName, url: image.authorUrl, description: image.description, unsplashUrl: image.unsplashUrl, locationCity: image.locationCity, locationCountry: image.locationCountry };
-    localStorage.setItem(BACKGROUND_CACHE_KEY, JSON.stringify({ date: today, image }));
+  if (newImage) {
+    // 3. Store the complete package in IndexedDB
+    await storeImage({
+      id: todayId,
+      blob: newImage.blob,
+      authorName: newImage.authorName,
+      authorUrl: newImage.authorUrl,
+      description: newImage.description,
+      unsplashUrl: newImage.unsplashUrl,
+      locationCity: newImage.locationCity,
+      locationCountry: newImage.locationCountry,
+    });
+
+    // 4. Display the new image
+    currentBgUrl.value = URL.createObjectURL(newImage.blob);
+    bgStyle.value = { backgroundImage: `url("${currentBgUrl.value}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
+    bgAttribution.value = {
+      name: newImage.authorName,
+      url: newImage.authorUrl,
+      description: newImage.description,
+      unsplashUrl: newImage.unsplashUrl,
+      locationCity: newImage.locationCity,
+      locationCountry: newImage.locationCountry,
+    };
+
+    // 5. Run cleanup in the background
+    cleanupOldImages();
+
   } else {
-    // 4. Fallback to static images if the API fails
-    // console.log('Falling back to static background image.');
+    // 6. Fallback to static images if the API fails
     const dayOfWeek = new Date().getDay();
     const fallbackUrl = BACKGROUND_IMAGES[dayOfWeek % BACKGROUND_IMAGES.length];
     bgStyle.value = { backgroundImage: `url("${fallbackUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
@@ -201,6 +232,11 @@ const closeModal = () => {
 };
 
 onUnmounted(() => {
+
+  if (currentBgUrl.value) {
+    URL.revokeObjectURL(currentBgUrl.value);
+  }
+
   clearTimeout(pressTimer.value ?? undefined);
 })
 
