@@ -103,7 +103,7 @@ const bgStyle: Ref<Record<string, string>> = ref({})
 const bgAttribution = ref<{ name: string; url: string; description: string; unsplashUrl: string; locationCity: string; locationCountry: string } | null>(null); // For attribution
 const currentBgUrl = ref<string | null>(null); // To manage object URL lifecycle
 
-const LOCAL_STORAGE = true
+const LOCAL_STORAGE = false
 
 // --- Caching and Background Logic ---
 // const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
@@ -160,7 +160,7 @@ const setDailyBackground = async (): Promise<void> => {
 
   // 2. If not in DB, fetch from Unsplash
   // console.log('No valid cache found. Fetching new image from Unsplash.');
-  let query = 'new zealand nature'; // A nice fallback
+  let query = 'New Zealand Nature'; // A nice fallback
   const queryOptions = ["nature", "city", "art", "sightseeing"];
   const randomIndex = Math.floor(Math.random() * queryOptions.length);
   const randomOption = queryOptions[randomIndex];

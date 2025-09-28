@@ -48,7 +48,7 @@ const dbPromise = openDB<AppDBSchema>(DB_NAME, DB_VERSION, {
     // The 'upgrade' function runs only when the database is first created
     // or when the DB_VERSION number is increased.
     upgrade(db) {
-        console.log('Creating database schema for the first time.');
+        // console.log('Creating database schema for the first time.');
         // Since this is version 1, we can create both object stores directly.
         db.createObjectStore(IMAGE_STORE, { keyPath: 'id' });
         db.createObjectStore(WEATHER_STORE, { keyPath: 'city' });
