@@ -11,7 +11,14 @@
     <div class="min-width-max-container">
       <div class="top-bar-container">
 
-        <Clock :jiggleMode="isModalVisible" :clocks="userClocks" :teamMembers="teamMembers" @edit-clock="handleEditClock" @delete-clock="handleDeleteClock"/>
+        <Clock
+            :jiggleMode="isModalVisible"
+            :clocks="userClocks"
+            :teamMembers="teamMembers"
+            :weatherData="weatherData"
+            @edit-clock="handleEditClock"
+            @delete-clock="handleDeleteClock"
+        />
 
       </div>
     </div>
@@ -78,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, onUnmounted, Ref, ref} from 'vue'
+import {onMounted, onUnmounted, Ref, ref, watch} from 'vue'
 import Clock from "@/components/Clock.vue";
 import Calendar from "@/components/Calendar.vue";
 import Footer from "@/components/Footer.vue";
@@ -89,13 +96,14 @@ import TagInput from "@/components/TagInput.vue";
 
 // Import our new/updated services
 import { fetchAndDownloadImage } from '@/lib/unsplash.service';
-import { getStoredImage, storeImage, cleanupOldImages } from '@/lib/database.service';
+import { getWeatherForCity, type WeatherInfo } from '@/lib/weather.service';
+import { getStoredImage, storeImage, cleanupOldImages, cleanupOldWeather } from '@/lib/database.service';
 
 const bgStyle: Ref<Record<string, string>> = ref({})
 const bgAttribution = ref<{ name: string; url: string; description: string; unsplashUrl: string; locationCity: string; locationCountry: string } | null>(null); // For attribution
 const currentBgUrl = ref<string | null>(null); // To manage object URL lifecycle
 
-const LOCAL_STORAGE = false
+const LOCAL_STORAGE = true
 
 // --- Caching and Background Logic ---
 // const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
@@ -112,25 +120,18 @@ const selectedLocations = ref<TimezoneOption[]>([]);
 
 export type TeamMember = {
   name: string;
-  tz: string;
+  city: string; // Changed from 'tz' to 'city'
 };
 
 const teamMembers = ref<TeamMember[]>([]);
 const groupTeamMembers = ref<TeamMember[]>([]);
 
+const weatherData = ref<Map<string, WeatherInfo | null>>(new Map());
+
 // --- MODAL LOGIC START ---
 const isModalVisible: Ref<boolean> = ref(false)
 const isEditVisible: Ref<boolean> = ref(false)
 const pressTimer: Ref<number | null> = ref(null);
-
-const openModal = (): void => {
-  isModalVisible.value = true
-}
-//
-// const closeModal = (): void => {
-//   isModalVisible.value = false
-// }
-// --- MODAL LOGIC END ---
 
 const setDailyBackground = async (): Promise<void> => {
   // A consistent ID for the day, e.g., '2025-09-27'
@@ -139,11 +140,11 @@ const setDailyBackground = async (): Promise<void> => {
   // 1. Check IndexedDB first
   const cachedImage = await getStoredImage(todayId);
 
-  if (cachedImage) {
+  if (cachedImage && !bgStyle.value.backgroundImage) {
     // console.log('Image loaded from IndexedDB cache.');
     // Create a temporary local URL from the blob
-    currentBgUrl.value = URL.createObjectURL(cachedImage.blob);
-    bgStyle.value = { backgroundImage: `url("${currentBgUrl.value}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
+    // currentBgUrl.value = URL.createObjectURL(cachedImage.blob);
+    // bgStyle.value = { backgroundImage: `url("${currentBgUrl.value}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' };
 
     // Populate attribution directly from the cached metadata
     bgAttribution.value = {
@@ -197,7 +198,8 @@ const setDailyBackground = async (): Promise<void> => {
     };
 
     // 5. Run cleanup in the background
-    cleanupOldImages();
+    cleanupOldImages()
+    cleanupOldWeather()
 
   } else {
     // 6. Fallback to static images if the API fails
@@ -224,6 +226,10 @@ const startPress = () => {
 const cancelPress = () => {
   clearTimeout(pressTimer.value ?? undefined);
 };
+
+const openModal = (): void => {
+  isModalVisible.value = true
+}
 
 const closeModal = () => {
   isModalVisible.value = false;
@@ -265,11 +271,32 @@ onMounted(async () => {
 
     setDailyBackground()
 
+    // Pre-load all weather data after clocks are loaded
+    // This populates our map with cached data before the Clock component needs it.
+    for (const clock of userClocks.value) {
+      const data = await getWeatherForCity(clock.label);
+      if (data) {
+        weatherData.value.set(clock.label, data);
+      }
+    }
+
   } catch (error) {
     console.error("Error loading clocks from storage:", error);
 
   }
 });
+
+// Watch for changes to userClocks (e.g., adding a new city)
+// This ensures weather is fetched for newly added clocks.
+watch(userClocks, async (newClocks, oldClocks) => {
+  if (newClocks.length > oldClocks.length) {
+    const newClock = newClocks[newClocks.length - 1]; // Assumes new clock is added to the end
+    const data = await getWeatherForCity(newClock.label);
+    if (data) {
+      weatherData.value.set(newClock.label, data);
+    }
+  }
+}, { deep: true }); // 'deep' ensures the watcher reacts to changes inside the array
 
 /**
  * Saves a new timezone to the user's synchronized storage.
@@ -310,11 +337,11 @@ const handleTimezoneSelection = async (timezone: TimezoneOption) => {
 };
 
 const handleEditClock = async (clockToEdit: TimezoneOption) => {
-  const selectedClocks = userClocks.value.filter( clock => clock.tz === clockToEdit.tz )
+  // const selectedClocks = userClocks.value.filter( clock => clock.tz === clockToEdit.tz )
   selectedTimezone.value = clockToEdit.tz;
-  selectedLocations.value = [...selectedClocks]
+  selectedLocations.value = [clockToEdit]
 
-  groupTeamMembers.value = teamMembers.value.filter(teamMembers => teamMembers.tz === clockToEdit.tz)
+  groupTeamMembers.value = teamMembers.value.filter(member => member.city === clockToEdit.label);
 
   isModalVisible.value = false
   isEditVisible.value = true
@@ -322,22 +349,19 @@ const handleEditClock = async (clockToEdit: TimezoneOption) => {
 
 const handleAddTeamMember = async (teamMember: string) => {
 
-  teamMembers.value.push({'name': teamMember, 'tz': selectedTimezone.value})
+  // Ensure we have a location to add the member to
+  if (selectedLocations.value.length === 0) return;
+  const currentCity = selectedLocations.value[0].label;
 
-  const updatedTeamMebers = [...teamMembers.value]
+  teamMembers.value.push({ 'name': teamMember, 'city': currentCity });
+  const updatedTeamMembers = [...teamMembers.value];
 
   try {
-
     if(!LOCAL_STORAGE){
-      await chrome.storage.sync.set({ [MEMBERS_KEY]: updatedTeamMebers });
-
-      // userClocks.value = updatedClocks;
+      await chrome.storage.sync.set({ [MEMBERS_KEY]: updatedTeamMembers });
     }else{
-      localStorage.setItem(MEMBERS_KEY, JSON.stringify(updatedTeamMebers));
-
-      // userClocks.value = updatedClocks;
+      localStorage.setItem(MEMBERS_KEY, JSON.stringify(updatedTeamMembers));
     }
-
   } catch (error) {
     console.error("Error deleting clock from storage:", error);
   }
@@ -349,17 +373,11 @@ const handleRemoveTeamMember = async (teamMember: string) => {
   const updatedTeamMembers = [...teamMembers.value]
 
   try {
-
     if(!LOCAL_STORAGE){
       await chrome.storage.sync.set({ [MEMBERS_KEY]: updatedTeamMembers });
-
-      // userClocks.value = updatedClocks;
     }else{
       localStorage.setItem(MEMBERS_KEY, JSON.stringify(updatedTeamMembers));
-
-      // userClocks.value = updatedClocks;
     }
-
   } catch (error) {
     console.error("Error deleting clock from storage:", error);
   }
@@ -372,17 +390,13 @@ const removeLocation = async ( locationId ) => {
   const updatedClocks = userClocks.value.filter(clock => clock.id !== locationId);
 
   try {
-
     if(!LOCAL_STORAGE){
       await chrome.storage.sync.set({ [STORAGE_KEY]: updatedClocks });
-
       userClocks.value = updatedClocks;
     }else{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedClocks));
-
       userClocks.value = updatedClocks;
     }
-
   } catch (error) {
     console.error("Error deleting clock from storage:", error);
   }
@@ -390,20 +404,15 @@ const removeLocation = async ( locationId ) => {
 
 const handleDeleteClock = async (clockToDelete: TimezoneOption) => {
 
-  const updatedClocks = userClocks.value.filter(clock => clock.tz !== clockToDelete.tz);
+  userClocks.value = userClocks.value.filter(clock => clock.id !== clockToDelete.id);
+  const updatedClocks = [...userClocks.value]
 
   try {
-
     if(!LOCAL_STORAGE){
       await chrome.storage.sync.set({ [STORAGE_KEY]: updatedClocks });
-
-      userClocks.value = updatedClocks;
     }else{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedClocks));
-
-      userClocks.value = updatedClocks;
     }
-
   } catch (error) {
     console.error("Error deleting clock from storage:", error);
   }

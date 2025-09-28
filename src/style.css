@@ -1,0 +1,4 @@
+#app {
+    /* This makes the change in background-image animate smoothly */
+    transition: background-image 0.7s ease-in-out;
+}

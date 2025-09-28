@@ -1,38 +1,68 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { getWeatherForCity, type WeatherInfo } from '@/lib/weather.service'
 
+// --- PROPS & EMITS ---
 const props = defineProps<{
   jiggleMode: boolean
   clocks: ClockCfg[]
-  teamMembers: []
+  teamMembers: TeamMember[]
+  weatherData: Map<string, WeatherInfo | null>
 }>()
 
 const emit = defineEmits<{
-  (e: 'editClock', group: Group): void
-  (e: 'deleteClock', group: Group): void
+  (e: 'editClock', clock: ClockCfg): void      // Now emits a single ClockCfg
+  (e: 'deleteClock', clock: ClockCfg): void  // Now emits a single ClockCfg
   (e: 'showSettingsModal'): void
 }>()
 
-const homeTz = ref(
-    Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Lima'
-)
-
-// --- USER CONFIG: use IANA IDs (DST handled automatically) ---
+// --- TYPES ---
 type ClockCfg = { id: number; label: string; tz: string }
+type TeamMember = { name: string; city: string } // Note: TeamMember now links to a city
 
-// Group strategy: 'zone' (recommended) or 'offset'
-const groupBy = ref<'zone' | 'offset'>('zone')
-
-// Tick every 30s so minutes stay fresh
+// --- CORE STATE & HELPERS ---
+const homeTz = ref(Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Lima')
 const now = ref(new Date())
 let handle: number | undefined
-
-onMounted(() => {
-  handle = window.setInterval(() => { now.value = new Date() }, 30_000)
-})
+onMounted(() => { handle = window.setInterval(() => { now.value = new Date() }, 30_000) })
 onUnmounted(() => { if (handle) clearInterval(handle) })
 
+// --- NEW `sortedClocks` COMPUTED PROPERTY ---
+// This replaces the old `groups` computed property.
+// We now work with the clocks array directly.
+const sortedClocks = computed(() => {
+  // Create a mutable copy before sorting
+  const arr = [...props.clocks];
+
+  arr.sort((a, b) => {
+    const dayDiff = dayDelta(a.tz) - dayDelta(b.tz)
+    if (dayDiff !== 0) return dayDiff
+
+    const timeA = fmtTime24h(now.value, a.tz)
+    const timeB = fmtTime24h(now.value, b.tz)
+    return timeA.localeCompare(timeB)
+  })
+
+  return arr;
+});
+
+// --- UPDATED WEATHER LOGIC ---
+// The Map now keys by the unique city label instead of the timezone.
+// const weatherData = ref<Map<string, WeatherInfo | null>>(new Map());
+
+// watch(sortedClocks, async (newClocks) => {
+//   for (const clock of newClocks) {
+//     // We check for weather using the city's label (e.g., "New York")
+//     if (!weatherData.value.has(clock.label)) {
+//       weatherData.value.set(clock.label, null); // Set loading state
+//       const data = await getWeatherForCity(clock.label);
+//       weatherData.value.set(clock.label, data);
+//     }
+//   }
+// }, { immediate: true });
+
 const timeFmt24hCache = new Map<string, Intl.DateTimeFormat>()
+
 function fmtTime24h(d: Date, tz: string) {
   const k = `24h|${tz}` // Use a simple key
   if (!timeFmt24hCache.has(k)) {
@@ -79,16 +109,18 @@ function isDayOrNight(time24h) {
 
 // Intl helpers (cache formatters per tz)
 const locale = navigator.language || 'en-US'
-const timeFmtCache = new Map<string, Intl.DateTimeFormat>()
-function fmtFor(tz: string) {
-  const k = `${locale}|${tz}|12h`
-  if (!timeFmtCache.has(k)) {
-    timeFmtCache.set(k, new Intl.DateTimeFormat(locale, {
-      hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz
-    }))
-  }
-  return timeFmtCache.get(k)!
-}
+// const timeFmtCache = new Map<string, Intl.DateTimeFormat>()
+
+// function fmtFor(tz: string) {
+//   const k = `${locale}|${tz}|12h`
+//   if (!timeFmtCache.has(k)) {
+//     timeFmtCache.set(k, new Intl.DateTimeFormat(locale, {
+//       hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz
+//     }))
+//   }
+//   return timeFmtCache.get(k)!
+// }
+
 function formatTime(d: Date, tz: string) {
   // return fmtFor(tz).format(d)
   return fmtTime24h(d, tz)
@@ -130,52 +162,52 @@ function displayAbbr(tz: string) {
   return looksLikeLetters && a !== o ? a : ''   // hide if it's just another GMT string
 }
 
-function displayOffset(tz: string) {
-  return normalizeOffset(tzPart(tz, 'shortOffset'))
-}
-
-function zoneName(tz: string, mode: 'short' | 'shortOffset' = 'short') {
-  const parts = tzNameFmtFor(tz, mode).formatToParts(now.value)
-  return parts.find(p => p.type === 'timeZoneName')?.value ?? ''
-}
+// function displayOffset(tz: string) {
+//   return normalizeOffset(tzPart(tz, 'shortOffset'))
+// }
+//
+// function zoneName(tz: string, mode: 'short' | 'shortOffset' = 'short') {
+//   const parts = tzNameFmtFor(tz, mode).formatToParts(now.value)
+//   return parts.find(p => p.type === 'timeZoneName')?.value ?? ''
+// }
 
 // Key used for grouping
-function zoneKey(tz: string) {
-  if (groupBy.value === 'zone') return tz // stable across seasons
-  // Offset grouping: changes with DST; good if you want cards to merge
-  return zoneName(tz, 'shortOffset') // e.g. "GMT-05:00"
-}
+// function zoneKey(tz: string) {
+//   if (groupBy.value === 'zone') return tz // stable across seasons
+//   // Offset grouping: changes with DST; good if you want cards to merge
+//   return zoneName(tz, 'shortOffset') // e.g. "GMT-05:00"
+// }
 
 // Merge cities that share the same key (zone or current offset)
-type Group = { key: string; labels: string[]; tz: string }
-
-const groups = computed<Group[]>(() => {
-  const map = new Map<string, Group>()
-  for (const c of props.clocks) {
-    const key = zoneKey(c.tz)
-    const g = map.get(key) || { key, labels: [], tz: c.tz }
-    g.labels.push(c.label)
-    map.set(key, g)
-  }
-
-  const arr = Array.from(map.values())
-
-  arr.sort((a, b) => {
-    // 1. Primary Sort: by day difference (-1, 0, 1)
-    const dayDiff = dayDelta(a.tz) - dayDelta(b.tz)
-    if (dayDiff !== 0) {
-      return dayDiff
-    }
-
-    // 2. Secondary Sort: by 24-hour time
-    // String comparison works perfectly for "HH:mm" format
-    const timeA = fmtTime24h(now.value, a.tz)
-    const timeB = fmtTime24h(now.value, b.tz)
-    return timeA.localeCompare(timeB)
-  })
-
-  return arr
-})
+// type Group = { key: string; labels: string[]; tz: string }
+//
+// const groups = computed<Group[]>(() => {
+//   const map = new Map<string, Group>()
+//   for (const c of props.clocks) {
+//     const key = zoneKey(c.tz)
+//     const g = map.get(key) || { key, labels: [], tz: c.tz }
+//     g.labels.push(c.label)
+//     map.set(key, g)
+//   }
+//
+//   const arr = Array.from(map.values())
+//
+//   arr.sort((a, b) => {
+//     // 1. Primary Sort: by day difference (-1, 0, 1)
+//     const dayDiff = dayDelta(a.tz) - dayDelta(b.tz)
+//     if (dayDiff !== 0) {
+//       return dayDiff
+//     }
+//
+//     // 2. Secondary Sort: by 24-hour time
+//     // String comparison works perfectly for "HH:mm" format
+//     const timeA = fmtTime24h(now.value, a.tz)
+//     const timeB = fmtTime24h(now.value, b.tz)
+//     return timeA.localeCompare(timeB)
+//   })
+//
+//   return arr
+// })
 
 // (Optional) validate a new timezone id before saving it
 function isValidTimeZone(tz: string) {
@@ -221,47 +253,76 @@ function dayBadge(tz: string) {
   const d = dayDelta(tz)
   return d > 0 ? '(+1)' : d < 0 ? '(-1)' : ''
 }
+
+
+
+// 5. WEATHER LOGIC (Watches `groups`, so it MUST come AFTER `groups`)
+// =======================================
+// const weatherData = ref<Map<string, WeatherInfo | null>>(new Map());
+//
+// watch(groups, async (newGroups) => {
+//   for (const group of newGroups) {
+//     if (!weatherData.value.has(group.tz)) {
+//       const cityToFetch = group.labels[0];
+//       if (cityToFetch) {
+//         weatherData.value.set(group.tz, null);
+//         const data = await getWeatherForCity(cityToFetch);
+//         weatherData.value.set(group.tz, data);
+//       }
+//     }
+//   }
+// }, { immediate: true });
 </script>
 
 <template>
-  <div v-for="g in groups" :key="g.key"
-       class="glass-card clock-component"
+  <div v-for="clock in sortedClocks" :key="clock.id"
+       class="card-wrapper"
        :class="{ 'jiggle-active': jiggleMode }"
   >
-    <button v-if="jiggleMode" class="icon-button delete-icon" @click.stop="emit('deleteClock', g)">
+    <button v-if="jiggleMode" class="icon-button delete-icon" @click.stop="emit('deleteClock', clock)">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
         <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
       </svg>
     </button>
-    <button v-if="jiggleMode" class="icon-button edit-icon" @click.stop="emit('editClock', g)">
+    <button v-if="jiggleMode" class="icon-button edit-icon" @click.stop="emit('editClock', clock)">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
         <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
       </svg>
     </button>
 
-    <div>{{ g.labels.join(', ') }}</div>
-    <div>
-      {{ formatTime(now, g.tz) }}
-      <span v-if="displayAbbr(g.tz)" class="wc-abbr">{{ displayAbbr(g.tz) }}</span>
-<!--      <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>-->
-      <span v-if="dayBadge(g.tz)" class="wc-dayflag">{{ dayBadge(g.tz) }}</span>
+    <div class="glass-card clock-component" style="min-width: 100px">
+    <div class="city-header">
+      <span>{{ clock.label }}</span>
     </div>
-    <div class="avatar-group">
-      <div class="daytime" style="min-width: 1.2rem">
+    <div class="city-header">
+      {{ formatTime(now, clock.tz) }}
+      <span v-if="displayAbbr(clock.tz)" class="wc-abbr">{{ displayAbbr(clock.tz) }}</span>
+<!--      <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>-->
+      <span v-if="dayBadge(clock.tz)" class="wc-dayflag">{{ dayBadge(clock.tz) }}</span>
+
+      <div class="daytime" style="max-width: 1.2rem">
         <span class="daylight-avatar">
-          <svg v-if="isDayOrNight(formatTime(now, g.tz)) === 'day'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+          <svg v-if="isDayOrNight(formatTime(now, clock.tz)) === 'day'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px">
             <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z" />
           </svg>
-          <svg v-if="isDayOrNight(formatTime(now, g.tz)) === 'night'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+          <svg v-if="isDayOrNight(formatTime(now, clock.tz)) === 'night'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 15px; height: 15px">
             <path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 0 1 .162.819A8.97 8.97 0 0 0 9 6a9 9 0 0 0 9 9 8.97 8.97 0 0 0 3.463-.69.75.75 0 0 1 .981.98 10.503 10.503 0 0 1-9.694 6.46c-5.799 0-10.5-4.7-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 0 1 .818.162Z" clip-rule="evenodd" />
           </svg>
         </span>
       </div>
+    </div>
+    <div class="avatar-group">
+      <span v-if="props.weatherData.get(clock.label)?.temp" :title="`${props.weatherData.get(clock.label)?.description}`">
+        {{ ` ${props.weatherData.get(clock.label)?.temp}° ` }}
+      </span>
 
       <div class="teammembers" style="display: flex; gap: 3px; /* 2px */">
-        <div v-for="teamMember in props.teamMembers.filter(tm => tm.tz === g.tz)" class="avatar">{{teamMember.name}}</div>
+        <div v-for="teamMember in props.teamMembers.filter(tm => tm.city === clock.label)" class="avatar">
+          {{teamMember.name}}
+        </div>
       </div>
 
+    </div>
     </div>
   </div>
 
@@ -275,6 +336,10 @@ function dayBadge(tz: string) {
   50% { transform: rotate(-1.5deg) translate(1px, 1px); }
   75% { transform: rotate(1deg) translate(-1px, -1px); }
   100% { transform: rotate(-1deg) translate(1px, -1px); }
+}
+
+.card-wrapper {
+  position: relative; /* This is where the icons will be positioned from */
 }
 
 .jiggle-active {
@@ -307,10 +372,42 @@ function dayBadge(tz: string) {
   -webkit-backdrop-filter: blur(2px); /* For Safari */
   background-color: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
+
+
+  overflow: hidden;   /* Crucial: Hides the shine when it's outside the card */
+  transition: all 0.2s ease-in-out; /* Smooth transition for scale, etc. */
+}
+
+/* --- New Shine Effect --- */
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%; /* Start off-screen to the left */
+  width: 50%; /* Width of the shine */
+  height: 100%;
+  background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.2) 50%, /* The actual shine color/opacity */
+      rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-20deg); /* Skew to give it a slanted appearance */
+  pointer-events: none;     /* Ensures it doesn't interfere with mouse events */
+  opacity: 0;               /* Hidden by default */
+  transition: all 0.6s ease; /* Smooth transition for the shine movement */
+  z-index: 1;               /* Make sure it's above the card content */
 }
 
 .glass-card:hover {
   cursor: pointer;
+  transform: translateY(-2px) scale(1.02); /* Slight lift and scale on hover */
+  box-shadow: 0 25px 30px -10px rgb(0 0 0 / 0.15), 0 10px 12px -8px rgb(0 0 0 / 0.1);
+}
+
+.glass-card:hover::before {
+  left: 125%; /* Move across to off-screen right */
+  opacity: 1; /* Make it visible during the transition */
 }
 
 .clock-component {
@@ -358,6 +455,7 @@ function dayBadge(tz: string) {
   /* flex m-auto space-x-0.5 */
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin: auto;
   gap: 8px; /* 2px */
   width: 100%;
@@ -433,6 +531,22 @@ function dayBadge(tz: string) {
 .edit-icon {
   top: -5px;
   right: -5px;
+}
+
+
+
+.city-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px; /* Adjust spacing between text and icon */
+}
+
+.weather-icon {
+  width: 28px;
+  height: 28px;
+  /* Helps with slight vertical alignment issues */
+  transform: translateY(-2px);
 }
 
 </style>
