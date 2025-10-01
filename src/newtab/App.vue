@@ -24,6 +24,24 @@
     </div>
 
     <div>
+
+      <div class="bottom-content-wrapper">
+        <div class="bookmark-toggle-container">
+          <button @click="toggleBookmarks" class="bookmark-toggle-btn" aria-label="Toggle bookmarks bar">
+            <div class="arrow-triangle" :class="{ 'is-open': isBookmarksVisible }"></div>
+          </button>
+        </div>
+
+        <transition name="fade-slide-up">
+          <BookmarksBar
+              v-show="isBookmarksVisible"
+              :bookmarks="bookmarks"
+              @delete-bookmark="deleteBookmark"
+          />
+        </transition>
+
+
+      </div>
       <Calendar />
       <Footer @show-settings-modal="openModal" :attribution="bgAttribution" />
     </div>
@@ -49,6 +67,7 @@
     </div>
   </transition>
 
+  <!--  Div with timezone selector-->
   <transition name="fade">
     <div v-if="isEditVisible" class="modal-overlay" @click.self="closeModal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-content-edit">
@@ -94,6 +113,9 @@ import CustomTimezoneAutocomplete from "@/components/CustomTimezoneAutocomplete.
 import type { TimezoneOption } from '@/assets/world_timezone';
 import TagInput from "@/components/TagInput.vue";
 
+import BookmarksBar from '@/components/BookmarksBar.vue';
+import { useBookmarks } from '@/composables/useBookmarks';
+
 // Import our new/updated services
 import { fetchAndDownloadImage } from '@/lib/unsplash.service';
 import { getWeatherForCity, type WeatherInfo } from '@/lib/weather.service';
@@ -103,10 +125,18 @@ const bgStyle: Ref<Record<string, string>> = ref({})
 const bgAttribution = ref<{ name: string; url: string; description: string; unsplashUrl: string; locationCity: string; locationCountry: string } | null>(null); // For attribution
 const currentBgUrl = ref<string | null>(null); // To manage object URL lifecycle
 
-const LOCAL_STORAGE = false
+const LOCAL_STORAGE = true
 
 // --- Caching and Background Logic ---
 // const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
+
+// --- BOOKMARKS LOGIC ---
+const { bookmarks, addCurrentTabAsBookmark, deleteBookmark } = useBookmarks();
+const isBookmarksVisible = ref(true);
+
+const toggleBookmarks = () => {
+  isBookmarksVisible.value = !isBookmarksVisible.value;
+};
 
 // A constant for our storage key to avoid "magic strings".
 const STORAGE_KEY = 'userSelectedClocks';
@@ -675,5 +705,73 @@ body {
 .remove-chip-btn:hover {
   background-color: rgba(0, 0, 0, 0.4); /* Darken slightly on hover */
   opacity: 1;
+}
+
+
+
+
+
+
+
+
+/* Add to your existing <style scoped> in App.vue */
+
+.bookmark-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px; /* Space between arrow and calendar */
+}
+
+.bookmark-toggle-btn {
+  /* Make the button transparent, the triangle is the visual */
+  background: none;
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 20px; /* Smaller vertical area */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.bookmark-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* NEW: CSS to create the triangle */
+.arrow-triangle {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid rgba(255, 255, 255, 0.8);
+  transition: transform 0.3s ease;
+}
+
+.arrow-triangle.is-open {
+  transform: rotate(180deg);
+}
+
+
+/* --- NEW Fade + Slide-Up Animation --- */
+.fade-slide-up-enter-active,
+.fade-slide-up-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.fade-slide-up-enter-from,
+.fade-slide-up-leave-to {
+  opacity: 0;
+  /* THE FIX: Combine both transforms.
+    This centers it horizontally THEN moves it down, creating the starting point.
+  */
+  transform: translateX(-50%) translateY(20px);
+}
+
+
+.bottom-content-wrapper {
+  position: relative; /* This is the key change */
 }
 </style>

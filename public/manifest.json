@@ -1,10 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "WorldClock Extension by Oscar",
+  "name": "A WorldClock Extension by Oscar",
   "version": "2.0.0",
   "description": "A beautiful newtab showing teammates day from morning coffee to evening wind down to build empathy and human touch to remote work",
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "alarms"
   ],
   "host_permissions": [
     "https://images.unsplash.com/*",
@@ -16,6 +18,17 @@
   },
   "chrome_url_overrides": {
     "newtab": "newtab.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/bookmark-icon-16.png",
+      "32": "icons/bookmark-icon-32.png",
+      "48": "icons/bookmark-icon-48.png"
+    },
+    "default_title": "Bookmark this page"
   },
   "icons": {
     "128": "icons/icon_128.png",
