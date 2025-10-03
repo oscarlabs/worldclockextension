@@ -1,5 +1,8 @@
 <template>
-  <div class="main-container" :style="bgStyle"
+  <div ref="mainContainer"
+       class="main-container"
+       tabindex="-1"
+       :style="bgStyle"
        :aria-label="`Daily background for ${new Date().toLocaleDateString()}`"
        @mousedown="startPress"
        @mouseup="cancelPress"
@@ -125,18 +128,79 @@ const bgStyle: Ref<Record<string, string>> = ref({})
 const bgAttribution = ref<{ name: string; url: string; description: string; unsplashUrl: string; locationCity: string; locationCountry: string } | null>(null); // For attribution
 const currentBgUrl = ref<string | null>(null); // To manage object URL lifecycle
 
-const LOCAL_STORAGE = true
+const LOCAL_STORAGE = false
 
 // --- Caching and Background Logic ---
 // const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
 
 // --- BOOKMARKS LOGIC ---
+
+const mainContainer = ref<HTMLElement | null>(null);
+
 const { bookmarks, addCurrentTabAsBookmark, deleteBookmark } = useBookmarks();
-const isBookmarksVisible = ref(true);
+const isBookmarksVisible = ref(false);
 
 const toggleBookmarks = () => {
   isBookmarksVisible.value = !isBookmarksVisible.value;
 };
+
+// --- START: KEYBOARD SHORTCUT LOGIC ---
+/**
+ * Handles keydown events to control the bookmarks bar.
+ * ArrowUp shows the bar, ArrowDown hides it.
+ * @param {KeyboardEvent} event - The native keyboard event.
+ */
+const handleKeydown = async (event: KeyboardEvent) => {
+  // Check for ArrowUp key press
+  if (event.key === 'ArrowUp') {
+    event.preventDefault(); // Prevents the default browser action (e.g., scrolling)
+    isBookmarksVisible.value = true;
+    return;
+  }
+  // Check for ArrowDown key press
+  else if (event.key === 'ArrowDown') {
+    event.preventDefault(); // Prevents the default browser action
+    isBookmarksVisible.value = false;
+    return;
+  }
+
+  // --- NEW: Shortcut for number keys ---
+  const isNumberKey = /^[0-9]$/.test(event.key);
+
+  if (isNumberKey) {
+    event.preventDefault();
+
+    // Map the pressed key to the correct array index.
+    // '1' -> index 0, '9' -> index 8, and '0' -> index 9.
+    const bookmarkIndex = event.key === '0' ? 9 : parseInt(event.key, 10) - 1;
+
+    // Validation: Check if a bookmark exists at that index.
+    const targetBookmark = bookmarks.value[bookmarkIndex];
+
+    if (targetBookmark) {
+      // --- START: THE FIX ---
+      // First, check if we're in an extension environment
+      if (typeof chrome !== 'undefined' && chrome.tabs) {
+        // If yes, use the chrome.tabs API
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab && tab.id) {
+            await chrome.tabs.update(tab.id, { url: targetBookmark.url });
+          }
+        } catch (error) {
+          console.error("Failed to open bookmark using chrome.tabs API:", error);
+        }
+      } else {
+        // If no (local dev), fall back to window.open
+        console.warn("Chrome tabs API not available. Opening in new tab as a fallback.");
+        window.open(targetBookmark.url, '_blank');
+      }
+      // --- END: THE FIX ---
+    }
+    // If targetBookmark is undefined, nothing happens, preventing errors.
+  }
+};
+// --- END: KEYBOARD SHORTCUT LOGIC ---
 
 // A constant for our storage key to avoid "magic strings".
 const STORAGE_KEY = 'userSelectedClocks';
@@ -267,7 +331,10 @@ const closeModal = () => {
   pressTimer.value = null;
 };
 
-onUnmounted(() => {
+onUnmounted(async () => {
+
+  // Clean up the event listener to prevent memory leaks
+  window.removeEventListener('keydown', handleKeydown);
 
   if (currentBgUrl.value) {
     URL.revokeObjectURL(currentBgUrl.value);
@@ -277,6 +344,10 @@ onUnmounted(() => {
 })
 
 onMounted(async () => {
+
+  // Attach the global keyboard event listener when the component is mounted
+  window.addEventListener('keydown', handleKeydown);
+
   try {
     if(!LOCAL_STORAGE){
       const storedData = await chrome.storage.sync.get({[STORAGE_KEY]: []});
@@ -740,7 +811,19 @@ body {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* NEW: CSS to create the triangle */
+/* --- START: MODIFIED SECTION --- */
+
+/* 1. Add this new keyframe animation */
+@keyframes bounce-arrow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px); /* Controls the bounce height */
+  }
+}
+
+/* 2. Update the base arrow class */
 .arrow-triangle {
   width: 0;
   height: 0;
@@ -748,10 +831,17 @@ body {
   border-right: 6px solid transparent;
   border-bottom: 6px solid rgba(255, 255, 255, 0.8);
   transition: transform 0.3s ease;
+
+  /* Apply the animation by default (when the bar is closed) */
+  animation: bounce-arrow 1.5s infinite ease-in-out;
 }
 
+/* 3. Update the 'is-open' class */
 .arrow-triangle.is-open {
   transform: rotate(180deg);
+
+  /* Stop the animation when the bar is open */
+  animation: none;
 }
 
 

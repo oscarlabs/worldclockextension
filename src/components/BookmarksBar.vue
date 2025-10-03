@@ -12,7 +12,8 @@
       </div>
     </div>
     <div v-else class="empty-state">
-      <p>No bookmarks yet. Add one!</p>
+      <img src="/icons/bookmark-icon-48.png" alt="Bookmark icon" class="empty-state-icon" />
+      <p>No bookmarks yet. Click the extension icon in your toolbar to save a page.</p>
     </div>
   </div>
 </template>
@@ -127,8 +128,8 @@ const emit = defineEmits<{
   text-align: center;
   font-style: italic;
   color: rgba(255, 255, 255, 0.8);
-  padding: 20px 40px;
-  background: rgba(25, 25, 25, 0.55);
+  padding: 5px 15px;
+  background: rgba(25, 25, 25, 0.15);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: 16px;

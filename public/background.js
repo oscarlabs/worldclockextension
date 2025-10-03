@@ -7,7 +7,7 @@ const USE_SYNC_STORAGE = true;
 const storageArea = USE_SYNC_STORAGE ? chrome.storage.sync : chrome.storage.local;
 
 const BOOKMARKS_KEY = 'userBookmarks';
-const BOOKMARK_LIMIT = 10;
+const BOOKMARK_LIMIT = 15;
 
 // Listen for when the user clicks the browser action icon
 chrome.action.onClicked.addListener(async (tab) => {
