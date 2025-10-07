@@ -3,8 +3,6 @@
 import { openDB, type DBSchema } from 'idb';
 import type { WeatherInfo } from '@/lib/weather.service';
 
-// --- 1. Define the data structures for our database records ---
-
 export interface ImageCacheRecord {
     id: string; // The date string, e.g., '2025-09-27'
     blob: Blob;
@@ -22,13 +20,30 @@ export interface WeatherCacheRecord {
     timestamp: number;
 }
 
+export interface NagerHoliday {
+    date: string;
+    localName: string;
+    name: string;
+    countryCode: string;
+    fixed: boolean;
+    global: boolean;
+    counties: string[] | null;
+    launchYear: number | null;
+    types: string[];
+}
 
-// --- 2. Define the database schema ---
+// This is the structure we will store in IndexedDB
+export interface HolidayCacheRecord {
+    id: string; // Composite key: `${countryCode}-${year}` e.g., "US-2025"
+    holidays: NagerHoliday[]; // The full array of holidays for that year
+    timestamp: number;
+}
 
 const DB_NAME = 'NewTabDB';
-const DB_VERSION = 1; // Start with version 1 for the first release
+const DB_VERSION = 3;
 const IMAGE_STORE = 'imageStore';
 const WEATHER_STORE = 'weatherCache';
+const HOLIDAY_STORE = 'holidayCache';
 
 interface AppDBSchema extends DBSchema {
     [IMAGE_STORE]: {
@@ -39,24 +54,37 @@ interface AppDBSchema extends DBSchema {
         key: string;
         value: WeatherCacheRecord;
     };
+    [HOLIDAY_STORE]: {
+        key: string;
+        value: HolidayCacheRecord;
+    };
 }
 
-
-// --- 3. Initialize the database ---
-
 const dbPromise = openDB<AppDBSchema>(DB_NAME, DB_VERSION, {
-    // The 'upgrade' function runs only when the database is first created
-    // or when the DB_VERSION number is increased.
-    upgrade(db) {
-        // console.log('Creating database schema for the first time.');
-        // Since this is version 1, we can create both object stores directly.
-        db.createObjectStore(IMAGE_STORE, { keyPath: 'id' });
-        db.createObjectStore(WEATHER_STORE, { keyPath: 'city' });
+    upgrade(db, oldVersion) {
+        // This structure ensures smooth upgrades in the future.
+        if (oldVersion < 1) {
+            db.createObjectStore(IMAGE_STORE, { keyPath: 'id' });
+            db.createObjectStore(WEATHER_STORE, { keyPath: 'city' });
+        }
+
+        // The old v2 holiday store is now obsolete.
+        // We handle its removal in the v3 upgrade.
+        if (oldVersion < 2) {
+            // No action needed here for v2, as v3 will handle the migration.
+        }
+
+        // --- NEW: Handle the migration to the efficient holiday cache ---
+        if (oldVersion < 3) {
+            // If the old holiday store from v2 exists, delete it.
+            if (db.objectStoreNames.contains(HOLIDAY_STORE)) {
+                db.deleteObjectStore(HOLIDAY_STORE);
+            }
+            // Create the new, improved holiday store.
+            db.createObjectStore(HOLIDAY_STORE, { keyPath: 'id' });
+        }
     },
 });
-
-
-// --- 4. Service Functions (for interacting with the database) ---
 
 // Image Functions
 export const storeImage = async (image: ImageCacheRecord): Promise<void> => {
@@ -94,7 +122,6 @@ export const getStoredWeather = async (city: string): Promise<WeatherCacheRecord
     return db.get(WEATHER_STORE, city);
 };
 
-// --- ADD THIS NEW FUNCTION ---
 /**
  * Cleans up old weather entries from the database that are older than 24 hours.
  */
@@ -116,5 +143,48 @@ export const cleanupOldWeather = async (): Promise<void> => {
         }
         await tx.done;
         // console.log(`Cleaned up ${keysToDelete.length} old weather cache entries.`);
+    }
+};
+
+/**
+ * Stores holiday information in the database.
+ */
+export const storeHoliday = async (data: HolidayCacheRecord): Promise<void> => {
+    const db = await dbPromise;
+    await db.put(HOLIDAY_STORE, data);
+};
+
+/**
+ * Retrieves stored holiday information from the database by its composite key.
+ */
+export const getStoredHoliday = async (id: string): Promise<HolidayCacheRecord | undefined> => {
+    const db = await dbPromise;
+    return db.get(HOLIDAY_STORE, id);
+};
+
+/**
+ * Cleans up holiday entries older than 2 days.
+ */
+export const cleanupOldHolidays = async (): Promise<void> => {
+    const db = await dbPromise;
+    const allHolidays = await db.getAll(HOLIDAY_STORE);
+    const currentYear = new Date().getFullYear();
+
+    const keysToDelete = allHolidays
+        .filter(entry => {
+            // Safely parse the year from the ID, e.g., "US-2025" -> 2025
+            const yearStr = entry.id.split('-')[1];
+            const year = yearStr ? parseInt(yearStr, 10) : 0;
+            return year < currentYear;
+        })
+        .map(entry => entry.id);
+
+    if (keysToDelete.length > 0) {
+        const tx = db.transaction(HOLIDAY_STORE, 'readwrite');
+        for (const key of keysToDelete) {
+            tx.store.delete(key);
+        }
+        await tx.done;
+        // console.log(`Cleaned up ${keysToDelete.length} old holiday cache entries.`);
     }
 };

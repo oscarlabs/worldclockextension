@@ -122,13 +122,13 @@ import { useBookmarks } from '@/composables/useBookmarks';
 // Import our new/updated services
 import { fetchAndDownloadImage } from '@/lib/unsplash.service';
 import { getWeatherForCity, type WeatherInfo } from '@/lib/weather.service';
-import { getStoredImage, storeImage, cleanupOldImages, cleanupOldWeather } from '@/lib/database.service';
+import { getStoredImage, storeImage, cleanupOldImages, cleanupOldWeather, cleanupOldHolidays } from '@/lib/database.service';
 
 const bgStyle: Ref<Record<string, string>> = ref({})
 const bgAttribution = ref<{ name: string; url: string; description: string; unsplashUrl: string; locationCity: string; locationCountry: string } | null>(null); // For attribution
 const currentBgUrl = ref<string | null>(null); // To manage object URL lifecycle
 
-const LOCAL_STORAGE = false
+const LOCAL_STORAGE = true
 
 // --- Caching and Background Logic ---
 // const BACKGROUND_CACHE_KEY = 'dailyBackgroundCache'
@@ -294,6 +294,7 @@ const setDailyBackground = async (): Promise<void> => {
     // 5. Run cleanup in the background
     cleanupOldImages()
     cleanupOldWeather()
+    cleanupOldHolidays()
 
   } else {
     // 6. Fallback to static images if the API fails

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getWeatherForCity, type WeatherInfo } from '@/lib/weather.service'
+import { getHolidayForLocation } from '@/lib/holiday.service' // <--- 1. IMPORT THE NEW SERVICE
+import PartyHorn from "@/icons/PartyHorn.vue";
 
 // --- PROPS & EMITS ---
 const props = defineProps<{
@@ -26,6 +28,10 @@ const now = ref(new Date())
 let handle: number | undefined
 onMounted(() => { handle = window.setInterval(() => { now.value = new Date() }, 30_000) })
 onUnmounted(() => { if (handle) clearInterval(handle) })
+
+// --- NEW: HOLIDAY DATA LOGIC --- // <--- 2. ADD THIS SECTION
+const holidayData = ref(new Map<number, string | null>());
+const isLoadingHolidays = ref(false);
 
 // --- NEW `sortedClocks` COMPUTED PROPERTY ---
 // This replaces the old `groups` computed property.
@@ -254,7 +260,35 @@ function dayBadge(tz: string) {
   return d > 0 ? '(+1)' : d < 0 ? '(-1)' : ''
 }
 
+watch(() => props.clocks, async (newClocks) => {
+  if (!newClocks || newClocks.length === 0) {
+    holidayData.value.clear(); // Clear data if there are no clocks
+    return;
+  }
 
+  isLoadingHolidays.value = true;
+
+  // Create an array of promises to fetch all holidays in parallel
+  const holidayPromises = newClocks.map(async (clock) => {
+    const holidayName = await getHolidayForLocation(clock.id);
+    return { id: clock.id, name: holidayName };
+  });
+
+  // Wait for all fetches to complete
+  const results = await Promise.all(holidayPromises);
+
+  // Update the map with all results at once for better reactivity
+  const newHolidayMap = new Map<number, string | null>();
+  results.forEach(result => {
+    if (result.name) { // Only add to the map if there is a holiday
+      newHolidayMap.set(result.id, result.name);
+    }
+  });
+  holidayData.value = newHolidayMap;
+
+  isLoadingHolidays.value = false;
+
+}, { immediate: true, deep: true });
 
 // 5. WEATHER LOGIC (Watches `groups`, so it MUST come AFTER `groups`)
 // =======================================
@@ -291,16 +325,18 @@ function dayBadge(tz: string) {
     </button>
 
     <div class="glass-card clock-component" style="min-width: 100px">
-    <div class="city-header">
-      <span>{{ clock.label }}</span>
-    </div>
-    <div class="city-header">
-      {{ formatTime(now, clock.tz) }}
-      <span v-if="displayAbbr(clock.tz)" class="wc-abbr">{{ displayAbbr(clock.tz) }}</span>
-<!--      <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>-->
-      <span v-if="dayBadge(clock.tz)" class="wc-dayflag">{{ dayBadge(clock.tz) }}</span>
 
-      <div class="daytime" style="max-width: 1.2rem">
+      <div class="city-header" :title="holidayData.get(clock.id)!">
+        <span>{{ clock.label }}</span>
+        <PartyHorn v-if="holidayData.get(clock.id)" />
+      </div>
+      <div class="city-header">
+        {{ formatTime(now, clock.tz) }}
+        <span v-if="displayAbbr(clock.tz)" class="wc-abbr">{{ displayAbbr(clock.tz) }}</span>
+        <!--      <span class="wc-offset">{{ displayOffset(g.sampleTz) }}</span>-->
+        <span v-if="dayBadge(clock.tz)" class="wc-dayflag">{{ dayBadge(clock.tz) }}</span>
+
+        <div class="daytime" style="max-width: 1.2rem">
         <span class="daylight-avatar">
           <svg v-if="isDayOrNight(formatTime(now, clock.tz)) === 'day'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px">
             <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z" />
@@ -309,20 +345,21 @@ function dayBadge(tz: string) {
             <path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 0 1 .162.819A8.97 8.97 0 0 0 9 6a9 9 0 0 0 9 9 8.97 8.97 0 0 0 3.463-.69.75.75 0 0 1 .981.98 10.503 10.503 0 0 1-9.694 6.46c-5.799 0-10.5-4.7-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 0 1 .818.162Z" clip-rule="evenodd" />
           </svg>
         </span>
+        </div>
       </div>
-    </div>
-    <div class="avatar-group">
+      <div class="avatar-group">
       <span v-if="props.weatherData.get(clock.label)?.temp" :title="`${props.weatherData.get(clock.label)?.description}`">
         {{ ` ${props.weatherData.get(clock.label)?.temp}° ` }}
       </span>
 
-      <div class="teammembers" style="display: flex; gap: 3px; /* 2px */">
-        <div v-for="teamMember in props.teamMembers.filter(tm => tm.city === clock.label)" class="avatar">
-          {{teamMember.name}}
+        <div v-if="props.teamMembers.filter(tm => tm.city === clock.label).length > 0" class="teammembers" style="display: flex; align-items: center; gap: 3px;">
+          <div v-for="teamMember in props.teamMembers.filter(tm => tm.city === clock.label)" class="avatar">
+            {{teamMember.name}}
+          </div>
         </div>
+
       </div>
 
-    </div>
     </div>
   </div>
 
@@ -410,15 +447,26 @@ function dayBadge(tz: string) {
   opacity: 1; /* Make it visible during the transition */
 }
 
+.card-content {
+  position: relative; /* This allows z-index to work */
+  z-index: 110;         /* Lifts the content above the shine effect (which is z-index: 1) */
+
+  /* Re-apply flex to match original layout */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
 .clock-component {
   /* flex flex-col text-center w-fit min-h-[99px] + shared styles */
   flex-direction: column;
   text-align: center;
   width: fit-content;
-  min-height: 60px;
+  min-height: 64px;
   background: rgba(0,0,0,0.28) !important;
   color: white;
   user-select: none;
+  z-index: 120;
 }
 
 /* Zone abbrev (PDT/CEST) – small & subtle */
@@ -539,7 +587,7 @@ function dayBadge(tz: string) {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6px; /* Adjust spacing between text and icon */
+  gap: 9px; /* Adjust spacing between text and icon */
 }
 
 .weather-icon {
