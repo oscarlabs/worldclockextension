@@ -35,7 +35,7 @@ export async function getWeatherForCity(city: string): Promise<WeatherInfo | nul
     // 3. If cache is stale or missing, fetch from the API
     // console.log(`Cache stale or missing for ${city}. Fetching from API.`);
     if (!API_KEY) {
-        console.error("OpenWeatherMap API key is missing.");
+        // console.error("OpenWeatherMap API key is missing.");
         return null;
     }
 
@@ -47,6 +47,12 @@ export async function getWeatherForCity(city: string): Promise<WeatherInfo | nul
 
     try {
         const response = await fetch(`${BASE_URL}?${params}`);
+
+        if (response.status === 404) {
+            // console.log(`Weather data not found for "${city}". This is expected for non-city locations.`);
+            return null; // Exit gracefully without an error
+        }
+
         if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
 
         const data = await response.json();
@@ -66,9 +72,7 @@ export async function getWeatherForCity(city: string): Promise<WeatherInfo | nul
         return weatherInfo;
 
     } catch (error) {
-        console.error(`An error occurred while fetching weather for ${city}:`, error);
-        // On error, return stale data if we have it, otherwise return null.
-        // This provides a better user experience than showing nothing.
+        // console.error(`An error occurred while fetching weather for ${city}:`, error);
         return cachedData?.weather || null;
     }
 }

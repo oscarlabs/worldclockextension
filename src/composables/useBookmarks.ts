@@ -15,7 +15,7 @@ export interface Bookmark {
 
 // Define our storage key and limit as constants
 const BOOKMARKS_KEY = 'userBookmarks';
-const BOOKMARK_LIMIT = 10;
+const BOOKMARK_LIMIT = 25;
 
 export function useBookmarks() {
     // Reactive state for our bookmarks

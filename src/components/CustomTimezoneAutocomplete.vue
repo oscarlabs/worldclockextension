@@ -1,6 +1,7 @@
 <template>
   <div class="autocomplete-root" ref="rootEl">
     <input
+        ref="inputRef"
         name="timezone-autocomplete"
         type="text"
         class="autocomplete-input"
@@ -42,11 +43,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, type CSSProperties } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, type CSSProperties, defineExpose } from 'vue';
 import { timezones, type TimezoneOption } from '@/assets/world_timezone';
 
-// Use Vue 3.4+ 'defineModel' for the cleanest v-model implementation
-const model = defineModel<TimezoneOption | null>();
+const inputRef = ref<HTMLInputElement | null>(null)
+
+defineExpose({
+  focusInput: () => {
+    // This method can be called by the parent
+    inputRef.value?.focus();
+  }
+});
 
 const emit = defineEmits<{
   (e: 'timezone-selected', payload: TimezoneOption): void
@@ -97,7 +104,6 @@ const onBlur = () => {
 };
 
 const selectTimezone = (timezone: TimezoneOption) => {
-  // model.value = timezone;
   emit('timezone-selected', timezone);
 
   searchQuery.value = ""; // Update input text to match selection
@@ -157,11 +163,6 @@ const scrollToActiveItem = async () => {
     }
   }
 };
-
-// When the model is updated from the parent, sync the input text
-// watch(model, (newValue) => {
-//   searchQuery.value = newValue?.label || '';
-// });
 
 // Watch for the dropdown opening to calculate its position
 watch(isOpen, (newValue) => {

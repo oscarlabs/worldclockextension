@@ -11,10 +11,11 @@
   "host_permissions": [
     "https://images.unsplash.com/*",
     "https://api.unsplash.com/*",
-    "https://api.openweathermap.org/*"
+    "https://api.openweathermap.org/*",
+    "https://date.nager.at/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://api.unsplash.com https://api.openweathermap.org https://images.unsplash.com;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://api.unsplash.com https://api.openweathermap.org https://images.unsplash.com https://date.nager.at;"
   },
   "chrome_url_overrides": {
     "newtab": "newtab.html"

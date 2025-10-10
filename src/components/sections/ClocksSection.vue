@@ -6,10 +6,9 @@ import PartyHorn from "@/icons/PartyHorn.vue";
 
 // --- PROPS & EMITS ---
 const props = defineProps<{
-  jiggleMode: boolean
   clocks: ClockCfg[]
   teamMembers: TeamMember[]
-  weatherData: Map<string, WeatherInfo | null>
+  weatherData: ReadonlyMap<string, WeatherInfo | null>
 }>()
 
 const emit = defineEmits<{
@@ -51,21 +50,6 @@ const sortedClocks = computed(() => {
 
   return arr;
 });
-
-// --- UPDATED WEATHER LOGIC ---
-// The Map now keys by the unique city label instead of the timezone.
-// const weatherData = ref<Map<string, WeatherInfo | null>>(new Map());
-
-// watch(sortedClocks, async (newClocks) => {
-//   for (const clock of newClocks) {
-//     // We check for weather using the city's label (e.g., "New York")
-//     if (!weatherData.value.has(clock.label)) {
-//       weatherData.value.set(clock.label, null); // Set loading state
-//       const data = await getWeatherForCity(clock.label);
-//       weatherData.value.set(clock.label, data);
-//     }
-//   }
-// }, { immediate: true });
 
 const timeFmt24hCache = new Map<string, Intl.DateTimeFormat>()
 
@@ -290,41 +274,15 @@ watch(() => props.clocks, async (newClocks) => {
 
 }, { immediate: true, deep: true });
 
-// 5. WEATHER LOGIC (Watches `groups`, so it MUST come AFTER `groups`)
-// =======================================
-// const weatherData = ref<Map<string, WeatherInfo | null>>(new Map());
-//
-// watch(groups, async (newGroups) => {
-//   for (const group of newGroups) {
-//     if (!weatherData.value.has(group.tz)) {
-//       const cityToFetch = group.labels[0];
-//       if (cityToFetch) {
-//         weatherData.value.set(group.tz, null);
-//         const data = await getWeatherForCity(cityToFetch);
-//         weatherData.value.set(group.tz, data);
-//       }
-//     }
-//   }
-// }, { immediate: true });
 </script>
 
 <template>
   <div v-for="clock in sortedClocks" :key="clock.id"
        class="card-wrapper"
-       :class="{ 'jiggle-active': jiggleMode }"
   >
-    <button v-if="jiggleMode" class="icon-button delete-icon" @click.stop="emit('deleteClock', clock)">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-      </svg>
-    </button>
-    <button v-if="jiggleMode" class="icon-button edit-icon" @click.stop="emit('editClock', clock)">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-      </svg>
-    </button>
-
-    <div class="glass-card clock-component" style="min-width: 100px">
+    <div class="glass-card clock-component"
+         style="min-width: 100px"
+         @dblclick="emit('editClock', clock)">
 
       <div class="city-header" :title="holidayData.get(clock.id)!">
         <span>{{ clock.label }}</span>
@@ -366,33 +324,9 @@ watch(() => props.clocks, async (newClocks) => {
 </template>
 
 <style scoped>
-/* --- Jiggle Animation --- */
-@keyframes jiggle {
-  0% { transform: rotate(-1deg) translate(1px, -1px); }
-  25% { transform: rotate(1.5deg) translate(-1px, 1px); }
-  50% { transform: rotate(-1.5deg) translate(1px, 1px); }
-  75% { transform: rotate(1deg) translate(-1px, -1px); }
-  100% { transform: rotate(-1deg) translate(1px, -1px); }
-}
 
 .card-wrapper {
   position: relative; /* This is where the icons will be positioned from */
-}
-
-.jiggle-active {
-  animation-name: jiggle;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
-  animation-duration: 0.5s;
-}
-
-/* Natural variations for the jiggle */
-.jiggle-active:nth-child(2n) { animation-duration: 0.45s; }
-.jiggle-active:nth-child(3n) { animation-duration: 0.55s; animation-delay: 0.1s; }
-.jiggle-active:nth-child(4n) { animation-duration: 0.4s; }
-
-.jiggle-active:active {
-  transform: scale(1); /* Disable scale effect while jiggling */
 }
 
 .glass-card {
@@ -415,7 +349,7 @@ watch(() => props.clocks, async (newClocks) => {
   transition: all 0.2s ease-in-out; /* Smooth transition for scale, etc. */
 }
 
-/* --- New Shine Effect --- */
+/* --- Shine Effect --- */
 .glass-card::before {
   content: '';
   position: absolute;
@@ -538,63 +472,11 @@ watch(() => props.clocks, async (newClocks) => {
   font-weight: bold;
 }
 
-
-
-/* --- Action Icon Styles --- */
-.icon-button {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background-color: rgba(60, 60, 60, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 4px;
-
-  /* Hidden by default, appear with jiggle */
-  opacity: 0;
-  transform: scale(0.5);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 10;
-}
-
-.jiggle-active .icon-button {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.icon-button:hover {
-  background-color: rgba(30, 30, 30, 0.8);
-}
-
-.delete-icon {
-  top: -5px;
-  left: -5px;
-}
-
-.edit-icon {
-  top: -5px;
-  right: -5px;
-}
-
-
-
 .city-header {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 9px; /* Adjust spacing between text and icon */
-}
-
-.weather-icon {
-  width: 28px;
-  height: 28px;
-  /* Helps with slight vertical alignment issues */
-  transform: translateY(-2px);
 }
 
 </style>

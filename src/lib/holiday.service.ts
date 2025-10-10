@@ -24,7 +24,7 @@ const getTodayDateStringForTimezone = (tz: string): string => {
     const day = parts.find(p => p.type === 'day')?.value;
 
     return `${year}-${month}-${day}`;
-    // return '2025-08-06';
+    // return '2025-10-08';
 };
 
 
@@ -56,12 +56,20 @@ export const getHolidayForLocation = async (locationId: number): Promise<string 
             const apiUrl = `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`;
             const response = await fetch(apiUrl);
 
-            if (!response.ok) {
-                throw new Error(`Nager API responded with status: ${response.status}`);
-            }
+            // console.log(`[Holiday Service] Response for ${countryCode}:`, response.status, response.statusText);
 
-            const holidayData: NagerHoliday[] = await response.json();
-            allHolidaysForYear = holidayData;
+            // Get the response as raw text to see what's actually in it
+            const rawText = await response.text();
+            // console.log(`[Holiday Service] Raw response body for ${countryCode}:`, rawText);
+
+            // This is the crucial check for an empty or bad response
+            if (!response.ok || rawText === "") {
+                // console.warn(`No valid holiday data returned for ${countryCode}. Caching empty array.`);
+                allHolidaysForYear = []; // Use an empty array to prevent further errors
+            } else {
+                // Only parse if we have valid, non-empty text
+                allHolidaysForYear = JSON.parse(rawText);
+            }
 
             await storeHoliday({
                 id: cacheKey,
@@ -69,7 +77,7 @@ export const getHolidayForLocation = async (locationId: number): Promise<string 
                 timestamp: Date.now(),
             });
         } catch (error) {
-            console.error(`Failed to fetch holiday data for ${countryCode}:`, error);
+            // console.error(`Failed to fetch holiday data for ${countryCode}:`, error);
             return null;
         }
     }

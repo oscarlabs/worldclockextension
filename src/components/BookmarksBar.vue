@@ -2,10 +2,17 @@
   <div class="bookmarks-container">
     <div v-if="bookmarks.length > 0" class="bookmarks-wrapper">
       <div v-for="bookmark in bookmarks" :key="bookmark.id" class="bookmark-item">
-        <a :href="bookmark.url" target="_blank" rel="noopener noreferrer" class="bookmark-link">
+        <a :href="bookmark.url" target="_self" rel="noopener noreferrer" class="bookmark-link">
           <img :src="bookmark.favIconUrl || defaultFavicon" alt="" class="favicon" />
           <span class="bookmark-title">{{ bookmark.title }}</span>
         </a>
+
+        <button @click="startRename(bookmark)" class="edit-btn" aria-label="Rename bookmark">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+          </svg>
+        </button>
+
         <button @click="emit('delete-bookmark', bookmark.id)" class="delete-btn" aria-label="Delete bookmark">
           &times;
         </button>

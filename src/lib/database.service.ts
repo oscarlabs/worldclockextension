@@ -92,9 +92,10 @@ export const storeImage = async (image: ImageCacheRecord): Promise<void> => {
     await db.put(IMAGE_STORE, image);
 };
 
-export const getStoredImage = async (id: string): Promise<ImageCacheRecord | undefined> => {
+export const getStoredImage = async (id: string): Promise<ImageCacheRecord | null> => {
     const db = await dbPromise;
-    return db.get(IMAGE_STORE, id);
+    const result = await db.get(IMAGE_STORE, id);
+    return result ?? null;
 };
 
 export const cleanupOldImages = async (): Promise<void> => {
