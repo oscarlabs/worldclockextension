@@ -34,7 +34,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { TimezoneOption, TeamMember } from '@/App.vue'; // Assuming types are exported from App
+import type { TimezoneOption } from '@/assets/world_timezone'
+import type { TeamMember } from "@/composables/useClocks"
 import CustomTimezoneAutocomplete from '@/components/CustomTimezoneAutocomplete.vue';
 import TagInput from '@/components/TagInput.vue';
 
@@ -43,18 +44,19 @@ const props = defineProps<{
   teamMembers: TeamMember[];
 }>();
 
-const emit = defineEmits(['update:clocks', 'update:teamMembers']);
+const emit = defineEmits(['update-clocks', 'update-teammembers']);
 
 const hoveredClockId = ref<number | null>(null);
 const editingClockId = ref<number | null>(null);
 const confirmingDeleteId = ref<number | null>(null);
+
 let deleteTimeout: number;
 
 // --- Add Logic ---
 const handleAddClock = (clock: TimezoneOption) => {
   if (!props.clocks.some(c => c.id === clock.id)) {
     const updatedClocks = [...props.clocks, clock];
-    emit('update:clocks', updatedClocks);
+    emit('update-clocks', updatedClocks);
   }
 };
 
@@ -65,11 +67,11 @@ const toggleEdit = (clockId: number) => {
 const getTeamMembersForClock = (label: string) => props.teamMembers.filter(tm => tm.city === label);
 const handleAddTeamMember = (name: string, city: string) => {
   const updatedMembers = [...props.teamMembers, { name, city }];
-  emit('update:teamMembers', updatedMembers);
+  emit('update-teammembers', updatedMembers);
 };
 const handleRemoveTeamMember = (name: string) => {
   const updatedMembers = props.teamMembers.filter(tm => tm.name !== name);
-  emit('update:teamMembers', updatedMembers);
+  emit('update-teammembers', updatedMembers);
 };
 
 // --- Delete Logic ---
@@ -80,7 +82,7 @@ const startDelete = (clockId: number) => {
 const confirmDelete = (clockId: number) => {
   clearTimeout(deleteTimeout);
   const updatedClocks = props.clocks.filter(c => c.id !== clockId);
-  emit('update:clocks', updatedClocks);
+  emit('update-clocks', updatedClocks);
   confirmingDeleteId.value = null;
 };
 </script>

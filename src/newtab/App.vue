@@ -22,24 +22,19 @@ const { data: teamMembers } = useStorage<TeamMember[]>(STORAGE_KEY_MEMBERS, [])
 const {
   selectedLocations,
   groupTeamMembers,
-  addClock,
-  deleteClock,
-  startEditClock,
-  addTeamMember,
-  removeTeamMember,
 } = useClocks(userClocks, teamMembers)
 
 const { bgStyle, bgAttribution, currentBgUrl, setDailyBackground, cleanup } = useDailyBackground(userClocks)
 const { weatherData } = useWeather(userClocks);
 
-import CustomTimezoneAutocomplete from "@/components/CustomTimezoneAutocomplete.vue"
 import type { TimezoneOption } from '@/assets/world_timezone'
-import TagInput from "@/components/TagInput.vue"
+
 
 // AQUI AQUI 1 LINEA
 // const groupTeamMembers = ref<TeamMember[]>([]);
 
 import { useBookmarks } from '@/composables/useBookmarks'
+import ClocksDrawer from "@/components/overlays/ClocksDrawer.vue";
 
 // --- BOOKMARKS LOGIC ---
 
@@ -66,29 +61,6 @@ const handleDrawerClose = () => {
 
 // Drawer state and functions - end
 
-
-const autocompleteComponentRef = ref<InstanceType<typeof CustomTimezoneAutocomplete> | null>(null);
-
-// AQUIAQUI 2 LINRAS
-// const selectedTimezone:Ref<string | null> = ref(null);
-// const selectedLocations = ref<TimezoneOption[]>([]);
-
-// --- MODAL LOGIC START --- AQUIAQUI 2LINEAS
-// const isModalVisible: Ref<boolean> = ref(false)
-// const isEditVisible: Ref<boolean> = ref(false)
-
-
-
-// AQUAQUI W FUNCTIONES
-// const openModal = (): void => {
-//   isModalVisible.value = true
-// }
-//
-// const closeModal = () => {
-//   isModalVisible.value = false;
-//   isEditVisible.value = false;
-// };
-
 onUnmounted(async () => {
   if (currentBgUrl.value) {
     URL.revokeObjectURL(currentBgUrl.value);
@@ -103,61 +75,13 @@ onMounted(async () => {
   }
 });
 
-// AQUIAQUI EL WATCH
-// watch(isModalVisible, (newValue) => {
-//   if (newValue) {
-//     nextTick(() => {
-//       autocompleteComponentRef.value?.focusInput();
-//     });
-//   }
-// });
-
-const handleTimezoneSelection = async (timezone: TimezoneOption) => {
-
-  const alreadyExists = userClocks.value.some(clock => clock.id === timezone.id);
-
-  if (alreadyExists) {
-    console.warn(`Timezone "${timezone.label}" already exists`);
-    return;
-  }
-
-  userClocks.value.push(timezone)
-};
-
-const handleEditClock = async (clockToEdit: TimezoneOption) => {
-  // const selectedClocks = userClocks.value.filter( clock => clock.tz === clockToEdit.tz )
-  selectedTimezone.value = clockToEdit.tz;
-  selectedLocations.value = [clockToEdit]
-
-  groupTeamMembers.value = teamMembers.value.filter(member => member.city === clockToEdit.label);
-
-  // isModalVisible.value = false
-  // isEditVisible.value = true
+const hanleUpdateClocks = (updatedClocks) => {
+  userClocks.value = updatedClocks
 }
 
-const handleAddTeamMember = async (teamMember: string) => {
-
-  if (selectedLocations.value.length === 0) return;
-  const currentCity = selectedLocations.value[0].label;
-
-  teamMembers.value.push({ name: teamMember, city: currentCity });
+const hanleUpdateTeamMembers = (updatedMembers) => {
+  teamMembers.value = updatedMembers
 }
-
-const handleRemoveTeamMember = async (teamMember: string) => {
-  teamMembers.value = teamMembers.value.filter(tm => tm.name !== teamMember)
-}
-
-// const removeLocation = async ( locationId ) => {
-//
-//   userClocks.value = selectedLocations.value.filter(clock => clock.id !== locationId);
-//
-// }
-
-const handleDeleteClock = async (clockToDelete: TimezoneOption) => {
-
-  userClocks.value = userClocks.value.filter(clock => clock.id !== clockToDelete.id);
-
-};
 
 </script>
 
@@ -251,7 +175,12 @@ const handleDeleteClock = async (clockToDelete: TimezoneOption) => {
       @close="handleDrawerClose"
   >
     <div v-if="activeDrawer === 'clocks'">
-      <p>Clock management UI goes here.</p>
+      <ClocksDrawer
+          :clocks="userClocks"
+          :teamMembers="teamMembers"
+          @update-clocks="hanleUpdateClocks"
+          @update-teammembers="hanleUpdateTeamMembers"
+      />
     </div>
     <div v-if="activeDrawer === 'bookmarks'">
       <p>Bookmark management UI goes here.</p>
@@ -301,219 +230,4 @@ body {
   z-index: 100; /* Ensure it's on top of everything */
 }
 
-/* --- MODAL STYLES START --- */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 50; /* Ensure it's on top of everything */
-}
-
-.modal-content {
-  /* The "Crystal Glass" effect */
-
-  /*backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%); /* For Safari */
-
-  /* Sizing and Layout */
-  width: 370px; /* Fixed width */
-  height: 130px; /* Fixed height */
-
-
-  /* Flexbox for internal layout (header/body) */
-  display: flex;
-  flex-direction: column;
-  color: #ffffff;
-  user-select: none;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.5);
-  flex-shrink: 0; /* Prevents header from shrinking */
-}
-
-.modal-title-text {
-  margin: 5px;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.modal-body {
-  padding: 1.5rem;
-  overflow-y: auto; /* The requested vertical scroll */
-  flex-grow: 1; /* Allows body to fill available space */
-  user-select: none;
-}
-
-.close-button {
-  background: transparent;
-  border: none;
-  font-size: 2rem;
-  line-height: 1;
-  color: black;
-  cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.close-button:hover {
-  opacity: 1;
-}
-
-.modal-content-edit {
-  /* Frosted Glass Effect */
-  background: rgba(25, 25, 25, 0.45); /* A dark, semi-transparent background */
-  backdrop-filter: blur(15px);          /* This blurs the content BEHIND the element */
-  -webkit-backdrop-filter: blur(15px);  /* For Safari browser support */
-
-  /* Shape and Definition */
-  border-radius: 16px;                  /* Softer, rounded corners */
-  border: 1px solid rgba(255, 255, 255, 0.18); /* A subtle light border to catch the light */
-
-  /* Depth and Polish */
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); /* A soft shadow to lift it off the page */
-
-  /* Layout */
-  width: 500px;                         /* A fixed width can look cleaner */
-  max-width: 90%;                       /* Ensures it's responsive on smaller screens */
-  color: #f5f5f5;                       /* A slightly off-white for text, easy on the eyes */
-}
-
-/*
- * Style the header section for better spacing and clarity
- */
-.modal-header-edit {
-  font-size: 1.1em;
-  font-weight: 500;
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* A subtle separator line */
-  display: flex;         /* 1. Turns on Flexbox layout */
-  align-items: center;   /* 2. Vertically centers the text and button */
-  gap: 12px;             /* 3. Adds a nice space between the text and button */
-}
-
-/*
- * Style the body section
- */
-.modal-body-edit {
-  padding: 20px;
-  min-height: 60px; /* Give it some minimum height so it doesn't look empty */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* A subtle separator line */
-}
-
-/* Styling the button to match the image */
-.add-member-btn {
-  /* Reset button styles */
-  background: white;
-  border: none;
-  padding: 0;
-
-  /* Sizing and Shape */
-  width: 25px;
-  height: 25px;
-  border-radius: 50%; /* Makes it a perfect circle */
-
-  /* Center the SVG icon inside */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  /* Interaction */
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-
-.add-member-btn:hover {
-  opacity: 0.85;
-}
-
-/* Styling the SVG icon itself */
-.add-member-btn svg {
-  width: 20px;
-  height: 20px;
-  color: #333; /* Color of the '+' symbol */
-}
-
-/* --- Transition Styles --- */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.5s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-/* --- MODAL STYLES END --- */
-
-
-.chip-container {
-  display: flex;         /* Aligns children (chips) in a row */
-  flex-wrap: wrap;       /* Allows chips to wrap to the next line if they overflow */
-  gap: 8px;              /* The perfect way to add space BETWEEN chips */
-  align-items: center;   /* Vertically aligns chips in the middle */
-  padding: 5px 0;        /* Adds a little vertical space to the container */
-}
-
-.chip {
-  /* This is the key change: use flexbox to align label and button */
-  display: inline-flex;  /* Use inline-flex to keep chips on the same line */
-  align-items: center;    /* Vertically center the text and the 'X' */
-  gap: 8px;               /* Adds a nice space between the label and the 'X' */
-
-  /* Your existing styles are great */
-  background-color: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  border-radius: 16px;
-  font-size: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-
-  /* Adjust padding to be on the chip itself */
-  padding: 6px 8px 6px 12px; /* A little less padding on the right for the button */
-}
-
-/* (Optional) Add a subtle hover effect for better UX */
-.chip:hover {
-  background-color: rgba(255, 255, 255, 0.4);
-}
-
-/* --- 2. ADD styles for the new remove button --- */
-.remove-chip-btn {
-  /* Reset default button styles */
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-
-  /* Appearance */
-  color: #ffffff;
-  opacity: 0.7;
-  cursor: pointer;
-  font-size: 18px; /* Make the 'X' a bit bigger */
-  line-height: 1;
-
-  /* Make a circular hover area for better UX */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%; /* Makes the background circle shape */
-  transition: background-color 0.2s ease, opacity 0.2s ease;
-}
-
-.remove-chip-btn:hover {
-  background-color: rgba(0, 0, 0, 0.4); /* Darken slightly on hover */
-  opacity: 1;
-}
 </style>
